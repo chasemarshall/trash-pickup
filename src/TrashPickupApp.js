@@ -14,7 +14,9 @@ import {
   Mail,
   Camera,
   X,
-  DollarSign
+  DollarSign,
+  CreditCard,
+  Settings
 } from 'lucide-react';
 import {
   analyzeImages,
@@ -125,6 +127,7 @@ const NavigationButtons = ({ onBack, onNext, nextDisabled = false, nextText = "C
     <div className="flex space-x-3">
       <button
         onClick={onBack}
+        type="button"
         className="flex-1 bg-gray-200 text-gray-800 py-4 rounded-xl font-bold hover:bg-gray-300 transition-colors"
       >
         {backText}
@@ -132,6 +135,7 @@ const NavigationButtons = ({ onBack, onNext, nextDisabled = false, nextText = "C
       <button
         onClick={onNext}
         disabled={nextDisabled}
+        type="button"
         className="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors"
       >
         {nextText}
@@ -266,11 +270,11 @@ const TrashPickupApp = () => {
     };
     try {
       await createBooking(newPickup);
-      setScheduledPickups(prev => [...prev, newPickup]);
-      setCurrentStep(7);
     } catch (err) {
       console.error('Booking failed', err);
     }
+    setScheduledPickups(prev => [...prev, newPickup]);
+    setCurrentStep(7);
   };
 
   const resetBooking = () => {
@@ -543,9 +547,12 @@ const TrashPickupApp = () => {
               <p className="text-gray-600">Confirm your details</p>
             </div>
 
-            <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Items</h3>
+            <div className="space-y-4">
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Package size={18} className="text-emerald-600" />
+                  <h3 className="font-semibold text-gray-900">Items</h3>
+                </div>
                 <ul className="list-disc list-inside text-sm text-gray-600">
                   {selectedItems.map(id => {
                     const item = trashTypes.find(t => t.id === id);
@@ -553,31 +560,61 @@ const TrashPickupApp = () => {
                   })}
                 </ul>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Load size</span>
-                <span className="font-medium text-gray-900">{sizeOptions.find(s => s.id === estimatedSize)?.name}</span>
+
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center space-x-2 mb-1">
+                  <Truck size={18} className="text-emerald-600" />
+                  <h3 className="font-semibold text-gray-900">Load size</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {sizeOptions.find(s => s.id === estimatedSize)?.name}
+                </p>
               </div>
-              <div className="text-sm">
-                <span className="text-gray-600">Schedule</span>
-                <div className="font-medium text-gray-900">{pickupDate} at {pickupTime}</div>
-                <div className="text-gray-600">{address}</div>
+
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center space-x-2 mb-1">
+                  <Calendar size={18} className="text-emerald-600" />
+                  <h3 className="font-semibold text-gray-900">Schedule</h3>
+                </div>
+                <p className="text-sm text-gray-600">{pickupDate} at {pickupTime}</p>
+                <p className="text-sm text-gray-600">{address}</p>
               </div>
-              <div className="text-sm">
-                <span className="text-gray-600">Contact</span>
-                <div className="font-medium text-gray-900">{accountInfo.name}</div>
-                <div className="text-gray-600">{accountInfo.phone}</div>
-                <div className="text-gray-600">{accountInfo.email}</div>
+
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center space-x-2 mb-1">
+                  <User size={18} className="text-emerald-600" />
+                  <h3 className="font-semibold text-gray-900">Contact</h3>
+                </div>
+                <p className="text-sm text-gray-600">{accountInfo.name}</p>
+                <p className="text-sm text-gray-600">{accountInfo.phone}</p>
+                <p className="text-sm text-gray-600">{accountInfo.email}</p>
               </div>
+
               {uploadedPhotos.length > 0 && (
-                <div>
-                  <span className="text-gray-600 text-sm">Photos</span>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Camera size={18} className="text-emerald-600" />
+                    <h3 className="font-semibold text-gray-900">Photos</h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
                     {uploadedPhotos.map(photo => (
-                      <img key={photo.id} src={photo.url} alt={photo.name} className="h-16 w-full object-cover rounded-lg" />
+                      <img
+                        key={photo.id}
+                        src={photo.url}
+                        alt={photo.name}
+                        className="h-16 w-full object-cover rounded-lg"
+                      />
                     ))}
                   </div>
                 </div>
               )}
+
+              <PriceEstimate
+                selectedItems={selectedItems}
+                estimatedSize={estimatedSize}
+                trashTypes={trashTypes}
+                sizeOptions={sizeOptions}
+              />
             </div>
 
             <p className="text-xs text-gray-500">Final pricing upon inspection.</p>
@@ -697,36 +734,42 @@ const TrashPickupApp = () => {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-gray-900 text-center">Account</h1>
-        <div className="flex border-b">
+        <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => setSection('payments')}
-            className={`flex-1 py-2 text-center font-semibold ${
+            className={`p-4 rounded-xl border text-center ${
               section === 'payments'
-                ? 'text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-gray-400'
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
+                : 'border-gray-200 text-gray-600'
             }`}
+            type="button"
           >
-            Payment Methods
+            <CreditCard size={20} className="mx-auto mb-1" />
+            <span className="text-xs font-semibold">Payments</span>
           </button>
           <button
             onClick={() => setSection('addresses')}
-            className={`flex-1 py-2 text-center font-semibold ${
+            className={`p-4 rounded-xl border text-center ${
               section === 'addresses'
-                ? 'text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-gray-400'
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
+                : 'border-gray-200 text-gray-600'
             }`}
+            type="button"
           >
-            Saved Addresses
+            <MapPin size={20} className="mx-auto mb-1" />
+            <span className="text-xs font-semibold">Addresses</span>
           </button>
           <button
             onClick={() => setSection('settings')}
-            className={`flex-1 py-2 text-center font-semibold ${
+            className={`p-4 rounded-xl border text-center ${
               section === 'settings'
-                ? 'text-emerald-600 border-b-2 border-emerald-600'
-                : 'text-gray-400'
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
+                : 'border-gray-200 text-gray-600'
             }`}
+            type="button"
           >
-            Customization
+            <Settings size={20} className="mx-auto mb-1" />
+            <span className="text-xs font-semibold">Customization</span>
           </button>
         </div>
 
