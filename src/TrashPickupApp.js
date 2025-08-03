@@ -1,5 +1,21 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, Truck, Package, Clock, CheckCircle2, User, List, Plus, ArrowLeft, Phone, Mail, Camera, X, DollarSign } from 'lucide-react';
+import {
+  Calendar,
+  MapPin,
+  Truck,
+  Package,
+  Clock,
+  CheckCircle2,
+  User,
+  List,
+  Plus,
+  ArrowLeft,
+  Phone,
+  Mail,
+  Camera,
+  X,
+  DollarSign
+} from 'lucide-react';
 
 // ===== COMPONENTS =====
 
@@ -125,9 +141,10 @@ const TrashPickupApp = () => {
   const [pickupDate, setPickupDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [address, setAddress] = useState('');
-  const [contactInfo, setContactInfo] = useState({ name: '', phone: '', email: '' });
+  const [accountInfo, setAccountInfo] = useState({ name: '', phone: '', email: '' });
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [scheduledPickups, setScheduledPickups] = useState([]);
+  const [accountSaved, setAccountSaved] = useState(false);
 
   // Data
   const trashTypes = [
@@ -216,7 +233,7 @@ const TrashPickupApp = () => {
       date: pickupDate,
       time: pickupTime,
       address,
-      contact: contactInfo,
+      contact: accountInfo,
       photos: uploadedPhotos
     };
     setScheduledPickups(prev => [...prev, newPickup]);
@@ -230,7 +247,6 @@ const TrashPickupApp = () => {
     setPickupDate('');
     setPickupTime('');
     setAddress('');
-    setContactInfo({ name: '', phone: '', email: '' });
     setUploadedPhotos([]);
   };
 
@@ -448,8 +464,8 @@ const TrashPickupApp = () => {
                 <input
                   type="text"
                   placeholder="Name"
-                  value={contactInfo.name}
-                  onChange={e => setContactInfo({ ...contactInfo, name: e.target.value })}
+                  value={accountInfo.name}
+                  onChange={e => setAccountInfo({ ...accountInfo, name: e.target.value })}
                   className="w-full outline-none"
                 />
               </div>
@@ -458,8 +474,8 @@ const TrashPickupApp = () => {
                 <input
                   type="tel"
                   placeholder="Phone"
-                  value={contactInfo.phone}
-                  onChange={e => setContactInfo({ ...contactInfo, phone: e.target.value })}
+                  value={accountInfo.phone}
+                  onChange={e => setAccountInfo({ ...accountInfo, phone: e.target.value })}
                   className="w-full outline-none"
                 />
               </div>
@@ -468,8 +484,8 @@ const TrashPickupApp = () => {
                 <input
                   type="email"
                   placeholder="Email"
-                  value={contactInfo.email}
-                  onChange={e => setContactInfo({ ...contactInfo, email: e.target.value })}
+                  value={accountInfo.email}
+                  onChange={e => setAccountInfo({ ...accountInfo, email: e.target.value })}
                   className="w-full outline-none"
                 />
               </div>
@@ -478,7 +494,7 @@ const TrashPickupApp = () => {
             <NavigationButtons
               onBack={() => setCurrentStep(4)}
               onNext={() => setCurrentStep(6)}
-              nextDisabled={!contactInfo.name || !contactInfo.phone || !contactInfo.email}
+              nextDisabled={!accountInfo.name || !accountInfo.phone || !accountInfo.email}
             />
           </div>
         );
@@ -512,9 +528,9 @@ const TrashPickupApp = () => {
               </div>
               <div className="text-sm">
                 <span className="text-gray-600">Contact</span>
-                <div className="font-medium text-gray-900">{contactInfo.name}</div>
-                <div className="text-gray-600">{contactInfo.phone}</div>
-                <div className="text-gray-600">{contactInfo.email}</div>
+                <div className="font-medium text-gray-900">{accountInfo.name}</div>
+                <div className="text-gray-600">{accountInfo.phone}</div>
+                <div className="text-gray-600">{accountInfo.email}</div>
               </div>
               {uploadedPhotos.length > 0 && (
                 <div>
@@ -594,13 +610,22 @@ const TrashPickupApp = () => {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 text-center">Scheduled Pickups</h1>
       {scheduledPickups.length === 0 ? (
-        <p className="text-center text-gray-600">No pickups scheduled yet.</p>
+        <div className="text-center text-gray-500 space-y-3 py-10">
+          <Truck className="mx-auto text-gray-400" size={40} />
+          <p>No pickups scheduled yet.</p>
+        </div>
       ) : (
         <div className="space-y-4">
           {scheduledPickups.map(pickup => (
-            <div key={pickup.id} className="border border-gray-200 rounded-xl p-4">
-              <div className="font-semibold text-gray-900">{pickup.date} at {pickup.time}</div>
-              <div className="text-sm text-gray-600">{pickup.address}</div>
+            <div key={pickup.id} className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+              <div className="flex items-center text-sm text-gray-600">
+                <Calendar size={16} className="text-emerald-600 mr-2" />
+                {pickup.date} at {pickup.time}
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <MapPin size={16} className="text-emerald-600 mr-2" />
+                {pickup.address}
+              </div>
             </div>
           ))}
         </div>
@@ -609,15 +634,49 @@ const TrashPickupApp = () => {
   );
 
   const AccountTab = () => (
-    <div className="text-center space-y-6">
-      <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-        <User size={32} className="text-emerald-600" />
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900 text-center">Account</h1>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Name</label>
+          <input
+            type="text"
+            value={accountInfo.name}
+            onChange={e => setAccountInfo({ ...accountInfo, name: e.target.value })}
+            className="mt-1 w-full border border-gray-200 rounded-xl p-3"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Phone</label>
+          <input
+            type="tel"
+            value={accountInfo.phone}
+            onChange={e => setAccountInfo({ ...accountInfo, phone: e.target.value })}
+            className="mt-1 w-full border border-gray-200 rounded-xl p-3"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Email</label>
+          <input
+            type="email"
+            value={accountInfo.email}
+            onChange={e => setAccountInfo({ ...accountInfo, email: e.target.value })}
+            className="mt-1 w-full border border-gray-200 rounded-xl p-3"
+          />
+        </div>
+        <button
+          onClick={() => {
+            setAccountSaved(true);
+            setTimeout(() => setAccountSaved(false), 2000);
+          }}
+          className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+        >
+          Save Changes
+        </button>
+        {accountSaved && (
+          <div className="text-sm text-center text-emerald-600">Account updated!</div>
+        )}
       </div>
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Account</h2>
-        <p className="text-gray-600">Manage your profile and settings</p>
-      </div>
-      <p className="text-gray-500">Account features coming soon.</p>
     </div>
   );
 
