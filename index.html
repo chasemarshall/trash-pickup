@@ -1,0 +1,922 @@
+import React, { useState } from 'react';
+import { Calendar, MapPin, Truck, Package, Clock, CheckCircle2, User, List, Plus, ArrowLeft, Phone, Mail, Camera, X, DollarSign } from 'lucide-react';
+
+// ===== COMPONENTS =====
+
+// Trailer Visualization Component
+const TrailerVisualization = ({ size }) => {
+  const sizeOptions = [
+    { id: 'small', name: 'Small Load', description: 'Pickup truck bed', trailers: 1 },
+    { id: 'medium', name: 'Medium Load', description: 'Small trailer', trailers: 1 },
+    { id: 'large', name: 'Large Load', description: 'Large trailer', trailers: 1 },
+    { id: 'extra-large', name: 'Extra Large', description: 'Multiple trailers', trailers: 2 }
+  ];
+
+  const selectedSize = sizeOptions.find(s => s.id === size);
+  
+  return (
+    <div className="flex flex-col items-center space-y-4 py-6">        
+      <div className="flex items-center space-x-3">
+        {/* Main Truck */}
+        <div className="relative">
+          <div className="w-16 h-8 bg-gray-800 rounded-sm flex items-center justify-center">
+            <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
+          </div>
+          <div className="absolute -left-4 top-1 w-6 h-6 bg-gray-900 rounded-l-sm" />
+        </div>
+
+        {/* Trailers */}
+        {Array.from({ length: selectedSize?.trailers || 1 }).map((_, index) => (
+          <div key={index} className="flex items-center">
+            <div className="w-3 h-0.5 bg-gray-400" />
+            <div className={`ml-2 h-8 rounded-sm flex items-center justify-center ${
+              size === 'small' ? 'w-12 bg-emerald-100' :
+              size === 'medium' ? 'w-16 bg-emerald-100' :
+              size === 'large' ? 'w-20 bg-emerald-100' : 'w-24 bg-emerald-100'
+            }`}>
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="text-center">
+        <p className="font-semibold text-gray-900">{selectedSize?.name}</p>
+        <p className="text-sm text-gray-600">{selectedSize?.description}</p>
+      </div>
+    </div>
+  );
+};
+
+// Price Estimate Component
+const PriceEstimate = ({ selectedItems, estimatedSize, trashTypes, sizeOptions }) => {
+  if (selectedItems.length === 0) return null;
+  
+  const selectedSizeData = sizeOptions.find(s => s.id === estimatedSize);
+  const itemsCost = selectedItems.reduce((total, itemId) => {
+    const item = trashTypes.find(t => t.id === itemId);
+    return total + (item ? item.basePrice : 0);
+  }, 0);
+  
+  const totalItemsCost = itemsCost * selectedSizeData.multiplier;
+  const total = selectedSizeData.baseFee + totalItemsCost;
+  
+  const estimate = {
+    baseFee: selectedSizeData.baseFee,
+    itemsCost: Math.round(totalItemsCost),
+    total: Math.round(total)
+  };
+  
+  return (
+    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+      <div className="flex items-center space-x-2">
+        <DollarSign size={18} className="text-emerald-600" />
+        <h4 className="font-semibold text-gray-900">Price Estimate</h4>
+      </div>
+      
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-gray-600">Base pickup fee</span>
+          <span className="font-medium">${estimate.baseFee}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Items & size</span>
+          <span className="font-medium">${estimate.itemsCost}</span>
+        </div>
+        <div className="border-t border-emerald-200 pt-2 flex justify-between">
+          <span className="font-semibold text-gray-900">Estimated total</span>
+          <span className="font-bold text-emerald-600">${estimate.total}</span>
+        </div>
+      </div>
+      
+      <p className="text-xs text-gray-500">Final price may vary based on exact items and location</p>
+    </div>
+  );
+};
+
+// Photo Upload Component
+const PhotoUpload = ({ uploadedPhotos, onPhotoUpload, onRemovePhoto }) => {
+  return (
+    <div className="space-y-4">
+      <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
+        <Camera size={32} className="text-gray-400 mx-auto mb-3" />
+        <p className="font-semibold text-gray-700 mb-1">Take photos of your items</p>
+        <p className="text-sm text-gray-500 mb-4">This helps us give you the best price</p>
+        
+        <label className="inline-block bg-emerald-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-emerald-700 cursor-pointer transition-colors">
+          Choose Photos
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={onPhotoUpload}
+            className="hidden"
+          />
+        </label>
+      </div>
+
+      {uploadedPhotos.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="font-semibold text-gray-900">Uploaded Photos ({uploadedPhotos.length})</h4>
+          <div className="grid grid-cols-2 gap-3">
+            {uploadedPhotos.map((photo) => (
+              <div key={photo.id} className="relative">
+                <img
+                  src={photo.url}
+                  alt={photo.name}
+                  className="w-full h-24 object-cover rounded-lg"
+                />
+                <button
+                  onClick={() => onRemovePhoto(photo.id)}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Navigation Buttons Component
+const NavigationButtons = ({ onBack, onNext, nextDisabled = false, nextText = "Continue", backText = "Back" }) => {
+  return (
+    <div className="flex space-x-3">
+      <button
+        onClick={onBack}
+        className="flex-1 bg-gray-200 text-gray-800 py-4 rounded-xl font-bold hover:bg-gray-300 transition-colors"
+      >
+        {backText}
+      </button>
+      <button
+        onClick={onNext}
+        disabled={nextDisabled}
+        className="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors"
+      >
+        {nextText}
+      </button>
+    </div>
+  );
+};
+
+// ===== BOOKING STEPS COMPONENTS =====
+
+// Step 1: Item Selection
+const ItemSelectionStep = ({ selectedItems, onToggleItem, onNext, trashTypes, estimatedSize, sizeOptions }) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">What needs pickup?</h2>
+      <p className="text-gray-600">Select all that apply</p>
+    </div>
+
+    <div className="grid grid-cols-2 gap-3">
+      {trashTypes.map((item) => (
+        <button
+          key={item.id}
+          onClick={() => onToggleItem(item.id)}
+          className={`p-4 rounded-xl border-2 transition-all ${
+            selectedItems.includes(item.id)
+              ? 'border-emerald-500 bg-emerald-50'
+              : 'border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <div className="text-3xl mb-2">{item.icon}</div>
+          <div className="text-sm font-semibold text-gray-800">{item.name}</div>
+          <div className="text-xs text-gray-500 mt-1">from ${item.basePrice}</div>
+        </button>
+      ))}
+    </div>
+
+    <PriceEstimate 
+      selectedItems={selectedItems}
+      estimatedSize={estimatedSize}
+      trashTypes={trashTypes}
+      sizeOptions={sizeOptions}
+    />
+
+    <button
+      onClick={onNext}
+      disabled={selectedItems.length === 0}
+      className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors"
+    >
+      Continue
+      {selectedItems.length > 0 && (
+        <span className="ml-2 font-medium">({selectedItems.length} selected)</span>
+      )}
+    </button>
+  </div>
+);
+
+// Step 2: Size Estimation
+const SizeEstimationStep = ({ estimatedSize, onSizeChange, onBack, onNext, selectedItems, trashTypes, sizeOptions }) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Estimate size</h2>
+      <p className="text-gray-600">How much stuff do you have?</p>
+    </div>
+
+    <TrailerVisualization size={estimatedSize} />
+
+    <div className="space-y-3">
+      {sizeOptions.map((size) => (
+        <button
+          key={size.id}
+          onClick={() => onSizeChange(size.id)}
+          className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+            estimatedSize === size.id
+              ? 'border-emerald-500 bg-emerald-50'
+              : 'border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-bold text-gray-900">{size.name}</div>
+              <div className="text-sm text-gray-600">{size.description}</div>
+              <div className="text-xs text-gray-500 mt-1">{size.examples}</div>
+            </div>
+            <div className="text-right">
+              <div className="font-bold text-emerald-600">${size.baseFee}+</div>
+              <div className="flex space-x-1 mt-1 justify-end">
+                {Array.from({ length: size.trailers }).map((_, i) => (
+                  <div key={i} className="w-2 h-2 bg-gray-400 rounded-sm" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+
+    <PriceEstimate 
+      selectedItems={selectedItems}
+      estimatedSize={estimatedSize}
+      trashTypes={trashTypes}
+      sizeOptions={sizeOptions}
+    />
+
+    <NavigationButtons onBack={onBack} onNext={onNext} />
+  </div>
+);
+
+// Step 3: Photo Upload
+const PhotoUploadStep = ({ uploadedPhotos, onPhotoUpload, onRemovePhoto, onBack, onNext }) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Add photos (optional)</h2>
+      <p className="text-gray-600">Help us provide a more accurate estimate</p>
+    </div>
+
+    <PhotoUpload 
+      uploadedPhotos={uploadedPhotos}
+      onPhotoUpload={onPhotoUpload}
+      onRemovePhoto={onRemovePhoto}
+    />
+
+    <NavigationButtons onBack={onBack} onNext={onNext} />
+  </div>
+);
+
+// Step 4: Scheduling
+const SchedulingStep = ({ address, onAddressChange, pickupDate, onDateChange, pickupTime, onTimeChange, onBack, onNext, selectedItems, estimatedSize, trashTypes, sizeOptions }) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Schedule pickup</h2>
+      <p className="text-gray-600">When and where?</p>
+    </div>
+
+    <div className="space-y-4">
+      <div>
+        <label className="block font-semibold text-gray-800 mb-2">Address</label>
+        <textarea
+          value={address}
+          onChange={(e) => onAddressChange(e.target.value)}
+          placeholder="Enter pickup address..."
+          className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          rows="2"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block font-semibold text-gray-800 mb-2">Date</label>
+          <input
+            type="date"
+            value={pickupDate}
+            onChange={(e) => onDateChange(e.target.value)}
+            min={new Date().toISOString().split('T')[0]}
+            className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          />
+        </div>
+
+        <div>
+          <label className="block font-semibold text-gray-800 mb-2">Time</label>
+          <select
+            value={pickupTime}
+            onChange={(e) => onTimeChange(e.target.value)}
+            className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          >
+            <option value="">Select</option>
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <PriceEstimate 
+      selectedItems={selectedItems}
+      estimatedSize={estimatedSize}
+      trashTypes={trashTypes}
+      sizeOptions={sizeOptions}
+    />
+
+    <NavigationButtons 
+      onBack={onBack} 
+      onNext={onNext} 
+      nextDisabled={!address || !pickupDate || !pickupTime}
+    />
+  </div>
+);
+
+// Step 5: Contact Info
+const ContactStep = ({ contactInfo, onContactChange, onBack, onNext, selectedItems, estimatedSize, trashTypes, sizeOptions }) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Contact info</h2>
+      <p className="text-gray-600">How can we reach you?</p>
+    </div>
+
+    <div className="space-y-4">
+      <div>
+        <label className="block font-semibold text-gray-800 mb-2">Name</label>
+        <input
+          type="text"
+          value={contactInfo.name}
+          onChange={(e) => onContactChange({ ...contactInfo, name: e.target.value })}
+          placeholder="Full name"
+          className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+        />
+      </div>
+
+      <div>
+        <label className="block font-semibold text-gray-800 mb-2">Phone</label>
+        <input
+          type="tel"
+          value={contactInfo.phone}
+          onChange={(e) => onContactChange({ ...contactInfo, phone: e.target.value })}
+          placeholder="(555) 123-4567"
+          className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+        />
+      </div>
+
+      <div>
+        <label className="block font-semibold text-gray-800 mb-2">Email</label>
+        <input
+          type="email"
+          value={contactInfo.email}
+          onChange={(e) => onContactChange({ ...contactInfo, email: e.target.value })}
+          placeholder="email@example.com"
+          className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+        />
+      </div>
+    </div>
+
+    <PriceEstimate 
+      selectedItems={selectedItems}
+      estimatedSize={estimatedSize}
+      trashTypes={trashTypes}
+      sizeOptions={sizeOptions}
+    />
+
+    <NavigationButtons 
+      onBack={onBack} 
+      onNext={onNext} 
+      nextDisabled={!contactInfo.name || !contactInfo.phone || !contactInfo.email}
+      nextText="Review"
+    />
+  </div>
+);
+
+// Step 6: Review
+const ReviewStep = ({ selectedItems, estimatedSize, pickupDate, pickupTime, address, contactInfo, uploadedPhotos, onBack, onNext, trashTypes, sizeOptions }) => {
+  const selectedItemNames = selectedItems.map(id => 
+    trashTypes.find(item => item.id === id)?.name
+  ).join(', ');
+  const selectedSizeInfo = sizeOptions.find(s => s.id === estimatedSize);
+  
+  const selectedSizeData = sizeOptions.find(s => s.id === estimatedSize);
+  const itemsCost = selectedItems.reduce((total, itemId) => {
+    const item = trashTypes.find(t => t.id === itemId);
+    return total + (item ? item.basePrice : 0);
+  }, 0);
+  const totalItemsCost = itemsCost * selectedSizeData.multiplier;
+  const total = selectedSizeData.baseFee + totalItemsCost;
+  const estimate = { total: Math.round(total) };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Review booking</h2>
+        <p className="text-gray-600">Confirm your details</p>
+      </div>
+
+      <div className="space-y-4 p-5 bg-gray-50 rounded-xl">
+        <div>
+          <h4 className="font-bold text-gray-900 mb-1">Items</h4>
+          <p className="text-gray-700">{selectedItemNames}</p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-gray-900 mb-1">Size</h4>
+          <p className="text-gray-700">{selectedSizeInfo?.name}</p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-gray-900 mb-1">Pickup</h4>
+          <p className="text-gray-700">{pickupDate} • {pickupTime}</p>
+          <p className="text-sm text-gray-600 mt-1">{address}</p>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-gray-900 mb-1">Contact</h4>
+          <p className="text-gray-700">{contactInfo.name}</p>
+          <p className="text-sm text-gray-600">{contactInfo.phone} • {contactInfo.email}</p>
+        </div>
+
+        {uploadedPhotos.length > 0 && (
+          <div>
+            <h4 className="font-bold text-gray-900 mb-2">Photos</h4>
+            <div className="grid grid-cols-4 gap-2">
+              {uploadedPhotos.map((photo) => (
+                <img
+                  key={photo.id}
+                  src={photo.url}
+                  alt={photo.name}
+                  className="w-full h-12 object-cover rounded-lg"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="font-bold text-gray-900">Estimated Total</h4>
+          <span className="text-2xl font-bold text-emerald-600">${estimate.total}</span>
+        </div>
+        <p className="text-sm text-gray-600">Final price confirmed after inspection</p>
+      </div>
+
+      <NavigationButtons 
+        onBack={onBack} 
+        onNext={onNext} 
+        nextText="Confirm Booking"
+      />
+    </div>
+  );
+};
+
+// Step 7: Confirmation
+const ConfirmationStep = ({ onReset }) => (
+  <div className="text-center space-y-6">
+    <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+      <CheckCircle2 size={32} className="text-emerald-600" />
+    </div>
+    
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Booking confirmed!</h2>
+      <p className="text-gray-600">We'll contact you soon with details and pricing.</p>
+    </div>
+
+    <div className="text-left bg-gray-50 rounded-xl p-5">
+      <h4 className="font-bold text-gray-900 mb-3">What's next?</h4>
+      <ul className="text-sm text-gray-700 space-y-2">
+        <li>• Confirmation call within 2 hours</li>
+        <li>• Email quote with final pricing</li>
+        <li>• Reminder 24 hours before pickup</li>
+      </ul>
+    </div>
+
+    <button
+      onClick={onReset}
+      className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+    >
+      Book another pickup
+    </button>
+  </div>
+);
+
+// ===== TAB COMPONENTS =====
+
+const AccountTab = () => (
+  <div className="space-y-6">
+    <div className="flex items-center space-x-4 pb-4 border-b border-gray-200">
+      <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center">
+        <User size={24} className="text-gray-600" />
+      </div>
+      <div>
+        <h3 className="font-bold text-gray-900">John Doe</h3>
+        <p className="text-sm text-gray-600">john.doe@email.com</p>
+      </div>
+    </div>
+
+    <div className="space-y-4">
+      <h4 className="font-semibold text-gray-900">Account Settings</h4>
+      
+      <button className="w-full text-left p-4 hover:bg-gray-50 rounded-xl transition-colors">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <User size={18} className="text-gray-500" />
+            <span className="font-medium text-gray-800">Profile Information</span>
+          </div>
+          <div className="text-gray-400">›</div>
+        </div>
+      </button>
+
+      <button className="w-full text-left p-4 hover:bg-gray-50 rounded-xl transition-colors">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <MapPin size={18} className="text-gray-500" />
+            <span className="font-medium text-gray-800">Saved Addresses</span>
+          </div>
+          <div className="text-gray-400">›</div>
+        </div>
+      </button>
+
+      <button className="w-full text-left p-4 hover:bg-gray-50 rounded-xl transition-colors">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Phone size={18} className="text-gray-500" />
+            <span className="font-medium text-gray-800">Contact Preferences</span>
+          </div>
+          <div className="text-gray-400">›</div>
+        </div>
+      </button>
+    </div>
+  </div>
+);
+
+const PickupsTab = () => {
+  const scheduledPickups = [
+    {
+      id: 1,
+      date: '2025-08-10',
+      time: 'Morning (8AM-12PM)',
+      items: ['Furniture', 'Mattresses'],
+      size: 'Medium Load',
+      status: 'Confirmed',
+      address: '123 Main St, Houston, TX',
+      estimatedPrice: 180
+    },
+    {
+      id: 2,
+      date: '2025-08-15',
+      time: 'Afternoon (12PM-4PM)',
+      items: ['Electronics', 'Paint Cans'],
+      size: 'Small Load',
+      status: 'Pending',
+      address: '456 Oak Ave, Houston, TX',
+      estimatedPrice: 95
+    }
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-gray-900">Scheduled Pickups</h3>
+        <span className="text-sm text-gray-500">{scheduledPickups.length} total</span>
+      </div>
+
+      <div className="space-y-4">
+        {scheduledPickups.map((pickup) => (
+          <div key={pickup.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="font-bold text-gray-900">{pickup.date}</p>
+                <p className="text-sm text-gray-600">{pickup.time}</p>
+                <p className="text-sm text-gray-500">{pickup.address}</p>
+              </div>
+              <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                pickup.status === 'Confirmed' 
+                  ? 'bg-emerald-100 text-emerald-800' 
+                  : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {pickup.status}
+              </span>
+            </div>
+            
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Items: {pickup.items.join(', ')}</p>
+                <p className="text-sm text-gray-600">Size: {pickup.size}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-emerald-600">${pickup.estimatedPrice}</p>
+                <p className="text-xs text-gray-500">estimated</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {scheduledPickups.length === 0 && (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Calendar size={24} className="text-gray-400" />
+          </div>
+          <p className="text-gray-500 font-medium">No pickups scheduled</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ===== MAIN APP COMPONENT =====
+
+const TrashPickupApp = () => {
+  // State
+  const [currentTab, setCurrentTab] = useState('home');
+  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [estimatedSize, setEstimatedSize] = useState('small');
+  const [pickupDate, setPickupDate] = useState('');
+  const [pickupTime, setPickupTime] = useState('');
+  const [address, setAddress] = useState('');
+  const [contactInfo, setContactInfo] = useState({ name: '', phone: '', email: '' });
+  const [uploadedPhotos, setUploadedPhotos] = useState([]);
+
+  // Data
+  const trashTypes = [
+    { id: 'furniture', name: 'Furniture', icon: '🪑', basePrice: 25 },
+    { id: 'mattresses', name: 'Mattresses', icon: '🛏️', basePrice: 30 },
+    { id: 'paint-cans', name: 'Paint Cans', icon: '🎨', basePrice: 15 },
+    { id: 'building-debris', name: 'Building Debris', icon: '🧱', basePrice: 40 },
+    { id: 'appliances', name: 'Appliances', icon: '📺', basePrice: 35 },
+    { id: 'electronics', name: 'Electronics', icon: '💻', basePrice: 20 },
+    { id: 'yard-waste', name: 'Yard Waste', icon: '🌿', basePrice: 20 },
+    { id: 'general-junk', name: 'General Junk', icon: '🗑️', basePrice: 15 }
+  ];
+
+  const sizeOptions = [
+    { 
+      id: 'small', 
+      name: 'Small Load', 
+      description: 'Pickup truck bed',
+      trailers: 1,
+      examples: 'Few furniture pieces, small appliances',
+      multiplier: 1.0,
+      baseFee: 50
+    },
+    { 
+      id: 'medium', 
+      name: 'Medium Load', 
+      description: 'Small trailer',
+      trailers: 1,
+      examples: 'Room cleanout, multiple pieces',
+      multiplier: 1.5,
+      baseFee: 75
+    },
+    { 
+      id: 'large', 
+      name: 'Large Load', 
+      description: 'Large trailer',
+      trailers: 1,
+      examples: 'House cleanout, renovation debris',
+      multiplier: 2.0,
+      baseFee: 100
+    },
+    { 
+      id: 'extra-large', 
+      name: 'Extra Large', 
+      description: 'Multiple trailers',
+      trailers: 2,
+      examples: 'Construction debris, estate cleanout',
+      multiplier: 3.0,
+      baseFee: 150
+    }
+  ];
+
+  // Event Handlers
+  const toggleItem = (itemId) => {
+    setSelectedItems(prev => 
+      prev.includes(itemId) 
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  const handlePhotoUpload = (event) => {
+    const files = Array.from(event.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUploadedPhotos(prev => [...prev, {
+          id: Date.now() + Math.random(),
+          url: e.target.result,
+          name: file.name
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (photoId) => {
+    setUploadedPhotos(prev => prev.filter(photo => photo.id !== photoId));
+  };
+
+  const resetBooking = () => {
+    setCurrentStep(1);
+    setSelectedItems([]);
+    setEstimatedSize('small');
+    setPickupDate('');
+    setPickupTime('');
+    setAddress('');
+    setContactInfo({ name: '', phone: '', email: '' });
+    setUploadedPhotos([]);
+  };
+
+  // Render Booking Steps
+  const renderBookingStep = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <ItemSelectionStep
+            selectedItems={selectedItems}
+            onToggleItem={toggleItem}
+            onNext={() => setCurrentStep(2)}
+            trashTypes={trashTypes}
+            estimatedSize={estimatedSize}
+            sizeOptions={sizeOptions}
+          />
+        );
+
+      case 2:
+        return (
+          <SizeEstimationStep
+            estimatedSize={estimatedSize}
+            onSizeChange={setEstimatedSize}
+            onBack={() => setCurrentStep(1)}
+            onNext={() => setCurrentStep(3)}
+            selectedItems={selectedItems}
+            trashTypes={trashTypes}
+            sizeOptions={sizeOptions}
+          />
+        );
+
+      case 3:
+        return (
+          <PhotoUploadStep
+            uploadedPhotos={uploadedPhotos}
+            onPhotoUpload={handlePhotoUpload}
+            onRemovePhoto={removePhoto}
+            onBack={() => setCurrentStep(2)}
+            onNext={() => setCurrentStep(4)}
+          />
+        );
+
+      case 4:
+        return (
+          <SchedulingStep
+            address={address}
+            onAddressChange={setAddress}
+            pickupDate={pickupDate}
+            onDateChange={setPickupDate}
+            pickupTime={pickupTime}
+            onTimeChange={setPickupTime}
+            onBack={() => setCurrentStep(3)}
+            onNext={() => setCurrentStep(5)}
+            selectedItems={selectedItems}
+            estimatedSize={estimatedSize}
+            trashTypes={trashTypes}
+            sizeOptions={sizeOptions}
+          />
+        );
+
+      case 5:
+        return (
+          <ContactStep
+            contactInfo={contactInfo}
+            onContactChange={setContactInfo}
+            onBack={() => setCurrentStep(4)}
+            onNext={() => setCurrentStep(6)}
+            selectedItems={selectedItems}
+            estimatedSize={estimatedSize}
+            trashTypes={trashTypes}
+            sizeOptions={sizeOptions}
+          />
+        );
+
+      case 6:
+        return (
+          <ReviewStep
+            selectedItems={selectedItems}
+            estimatedSize={estimatedSize}
+            pickupDate={pickupDate}
+            pickupTime={pickupTime}
+            address={address}
+            contactInfo={contactInfo}
+            uploadedPhotos={uploadedPhotos}
+            onBack={() => setCurrentStep(5)}
+            onNext={() => setCurrentStep(7)}
+            trashTypes={trashTypes}
+            sizeOptions={sizeOptions}
+          />
+        );
+
+      case 7:
+        return (
+          <ConfirmationStep onReset={resetBooking} />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const HomeTab = () => (
+    <div className="space-y-6">
+      {currentStep === 1 ? (
+        <div className="text-center space-y-3 mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">TrashPick</h1>
+          <p className="text-gray-600">Simple junk removal</p>
+        </div>
+      ) : (
+        <div className="flex items-center space-x-4 mb-6">
+          <button 
+            onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : resetBooking()}
+            className="p-3 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <ArrowLeft size={22} className="text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">New Pickup</h1>
+            <p className="text-sm text-gray-500">Step {currentStep} of 7</p>
+          </div>
+        </div>
+      )}
+
+      {renderBookingStep()}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="max-w-sm mx-auto">
+        {/* Main Content */}
+        <div className="px-5 py-6 pb-24">
+          {currentTab === 'home' && <HomeTab />}
+          {currentTab === 'pickups' && <PickupsTab />}
+          {currentTab === 'account' && <AccountTab />}
+        </div>
+
+        {/* Bottom Navigation */}
+        <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm bg-white border-t border-gray-200">
+          <div className="flex">
+            <button
+              onClick={() => setCurrentTab('home')}
+              className={`flex-1 py-4 px-4 text-center transition-colors ${
+                currentTab === 'home' 
+                  ? 'text-emerald-600' 
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <Plus size={22} className="mx-auto mb-1" />
+              <span className="text-xs font-bold">Book</span>
+            </button>
+            
+            <button
+              onClick={() => setCurrentTab('pickups')}
+              className={`flex-1 py-4 px-4 text-center transition-colors ${
+                currentTab === 'pickups' 
+                  ? 'text-emerald-600' 
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <List size={22} className="mx-auto mb-1" />
+              <span className="text-xs font-bold">Pickups</span>
+            </button>
+            
+            <button
+              onClick={() => setCurrentTab('account')}
+              className={`flex-1 py-4 px-4 text-center transition-colors ${
+                currentTab === 'account' 
+                  ? 'text-emerald-600' 
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <User size={22} className="mx-auto mb-1" />
+              <span className="text-xs font-bold">Account</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TrashPickupApp;
