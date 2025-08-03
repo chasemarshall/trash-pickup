@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   MapPin,
@@ -16,6 +16,15 @@ import {
   X,
   DollarSign
 } from 'lucide-react';
+import {
+  analyzeImages,
+  createBooking,
+  fetchPaymentMethods,
+  fetchAddresses,
+  savePaymentMethod,
+  saveAddress,
+  saveCustomizationSettings
+} from './api';
 
 // ===== COMPONENTS =====
 
@@ -145,6 +154,18 @@ const TrashPickupApp = () => {
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [scheduledPickups, setScheduledPickups] = useState([]);
   const [accountSaved, setAccountSaved] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [customSettings, setCustomSettings] = useState({ notifications: true, theme: 'light' });
+  const [analysisResult, setAnalysisResult] = useState(null);
+
+  useEffect(() => {
+    async function loadAccountData() {
+      setPaymentMethods(await fetchPaymentMethods());
+      setSavedAddresses(await fetchAddresses());
+    }
+    loadAccountData();
+  }, []);
 
   // Data
   const trashTypes = [
@@ -206,7 +227,7 @@ const TrashPickupApp = () => {
     );
   };
 
-  const handlePhotoUpload = (event) => {
+  const handlePhotoUpload = async (event) => {
     const files = Array.from(event.target.files);
     files.forEach(file => {
       const reader = new FileReader();
@@ -219,13 +240,20 @@ const TrashPickupApp = () => {
       };
       reader.readAsDataURL(file);
     });
+
+    try {
+      const result = await analyzeImages(files);
+      setAnalysisResult(result);
+    } catch (err) {
+      console.error('Image analysis failed', err);
+    }
   };
 
   const removePhoto = (photoId) => {
     setUploadedPhotos(prev => prev.filter(photo => photo.id !== photoId));
   };
 
-  const confirmBooking = () => {
+  const confirmBooking = async () => {
     const newPickup = {
       id: Date.now(),
       items: selectedItems,
@@ -236,8 +264,13 @@ const TrashPickupApp = () => {
       contact: accountInfo,
       photos: uploadedPhotos
     };
-    setScheduledPickups(prev => [...prev, newPickup]);
-    setCurrentStep(7);
+    try {
+      await createBooking(newPickup);
+      setScheduledPickups(prev => [...prev, newPickup]);
+      setCurrentStep(7);
+    } catch (err) {
+      console.error('Booking failed', err);
+    }
   };
 
   const resetBooking = () => {
@@ -383,6 +416,9 @@ const TrashPickupApp = () => {
                     </div>
                   ))}
                 </div>
+              )}
+              {analysisResult && (
+                <p className="text-sm text-emerald-600">AI analysis complete.</p>
               )}
             </div>
 
@@ -633,52 +669,202 @@ const TrashPickupApp = () => {
     </div>
   );
 
-  const AccountTab = () => (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 text-center">Account</h1>
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Name</label>
-          <input
-            type="text"
-            value={accountInfo.name}
-            onChange={e => setAccountInfo({ ...accountInfo, name: e.target.value })}
-            className="mt-1 w-full border border-gray-200 rounded-xl p-3"
-          />
+  const AccountTab = () => {
+    const [section, setSection] = useState('payments');
+    const [newPayment, setNewPayment] = useState('');
+    const [newAddress, setNewAddress] = useState('');
+
+    const addPayment = async () => {
+      if (!newPayment) return;
+      await savePaymentMethod(newPayment);
+      setPaymentMethods(prev => [...prev, newPayment]);
+      setNewPayment('');
+    };
+
+    const addAddressHandler = async () => {
+      if (!newAddress) return;
+      await saveAddress(newAddress);
+      setSavedAddresses(prev => [...prev, newAddress]);
+      setNewAddress('');
+    };
+
+    const saveSettings = async () => {
+      await saveCustomizationSettings({ accountInfo, customSettings });
+      setAccountSaved(true);
+      setTimeout(() => setAccountSaved(false), 2000);
+    };
+
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900 text-center">Account</h1>
+        <div className="flex border-b">
+          <button
+            onClick={() => setSection('payments')}
+            className={`flex-1 py-2 text-center font-semibold ${
+              section === 'payments'
+                ? 'text-emerald-600 border-b-2 border-emerald-600'
+                : 'text-gray-400'
+            }`}
+          >
+            Payment Methods
+          </button>
+          <button
+            onClick={() => setSection('addresses')}
+            className={`flex-1 py-2 text-center font-semibold ${
+              section === 'addresses'
+                ? 'text-emerald-600 border-b-2 border-emerald-600'
+                : 'text-gray-400'
+            }`}
+          >
+            Saved Addresses
+          </button>
+          <button
+            onClick={() => setSection('settings')}
+            className={`flex-1 py-2 text-center font-semibold ${
+              section === 'settings'
+                ? 'text-emerald-600 border-b-2 border-emerald-600'
+                : 'text-gray-400'
+            }`}
+          >
+            Customization
+          </button>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Phone</label>
-          <input
-            type="tel"
-            value={accountInfo.phone}
-            onChange={e => setAccountInfo({ ...accountInfo, phone: e.target.value })}
-            className="mt-1 w-full border border-gray-200 rounded-xl p-3"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
-          <input
-            type="email"
-            value={accountInfo.email}
-            onChange={e => setAccountInfo({ ...accountInfo, email: e.target.value })}
-            className="mt-1 w-full border border-gray-200 rounded-xl p-3"
-          />
-        </div>
-        <button
-          onClick={() => {
-            setAccountSaved(true);
-            setTimeout(() => setAccountSaved(false), 2000);
-          }}
-          className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-        >
-          Save Changes
-        </button>
-        {accountSaved && (
-          <div className="text-sm text-center text-emerald-600">Account updated!</div>
+
+        {section === 'payments' && (
+          <div className="space-y-4">
+            {paymentMethods.length === 0 ? (
+              <p className="text-sm text-gray-600 text-center">No payment methods saved.</p>
+            ) : (
+              <div className="space-y-2">
+                {paymentMethods.map((method, index) => (
+                  <div
+                    key={index}
+                    className="p-3 border border-gray-200 rounded-xl text-sm text-gray-700"
+                  >
+                    {method}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={newPayment}
+                onChange={e => setNewPayment(e.target.value)}
+                placeholder="Card ending 1234"
+                className="flex-1 border border-gray-200 rounded-xl p-3"
+              />
+              <button
+                onClick={addPayment}
+                className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+
+        {section === 'addresses' && (
+          <div className="space-y-4">
+            {savedAddresses.length === 0 ? (
+              <p className="text-sm text-gray-600 text-center">No addresses saved.</p>
+            ) : (
+              <div className="space-y-2">
+                {savedAddresses.map((addr, index) => (
+                  <div
+                    key={index}
+                    className="p-3 border border-gray-200 rounded-xl text-sm text-gray-700"
+                  >
+                    {addr}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={newAddress}
+                onChange={e => setNewAddress(e.target.value)}
+                placeholder="New address"
+                className="flex-1 border border-gray-200 rounded-xl p-3"
+              />
+              <button
+                onClick={addAddressHandler}
+                className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+
+        {section === 'settings' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Name</label>
+              <input
+                type="text"
+                value={accountInfo.name}
+                onChange={e => setAccountInfo({ ...accountInfo, name: e.target.value })}
+                className="mt-1 w-full border border-gray-200 rounded-xl p-3"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Phone</label>
+              <input
+                type="tel"
+                value={accountInfo.phone}
+                onChange={e => setAccountInfo({ ...accountInfo, phone: e.target.value })}
+                className="mt-1 w-full border border-gray-200 rounded-xl p-3"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <input
+                type="email"
+                value={accountInfo.email}
+                onChange={e => setAccountInfo({ ...accountInfo, email: e.target.value })}
+                className="mt-1 w-full border border-gray-200 rounded-xl p-3"
+              />
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={customSettings.notifications}
+                onChange={e =>
+                  setCustomSettings({ ...customSettings, notifications: e.target.checked })
+                }
+                className="mr-2"
+              />
+              <span className="text-sm text-gray-700">Email notifications</span>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Theme</label>
+              <select
+                value={customSettings.theme}
+                onChange={e =>
+                  setCustomSettings({ ...customSettings, theme: e.target.value })
+                }
+                className="mt-1 w-full border border-gray-200 rounded-xl p-3"
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+            <button
+              onClick={saveSettings}
+              className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+            >
+              Save Changes
+            </button>
+            {accountSaved && (
+              <div className="text-sm text-center text-emerald-600">Settings saved!</div>
+            )}
+          </div>
         )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-white">
