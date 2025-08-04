@@ -33,6 +33,19 @@ export async function savePaymentMethod(method) {
   return method;
 }
 
+export async function createLinkPay(amount) {
+  const res = await fetch('/api/payments/link', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount })
+  });
+  if (!res.ok) {
+    throw new Error('Failed to create Link Pay link');
+  }
+  const data = await res.json();
+  return data.url;
+}
+
 export async function fetchAddresses() {
   // Placeholder for fetching saved addresses from backend
   return [];
