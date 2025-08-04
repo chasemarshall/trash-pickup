@@ -144,6 +144,97 @@ const NavigationButtons = ({ onBack, onNext, nextDisabled = false, nextText = "C
   );
 };
 
+// Individual scheduled pickup tile
+const PickupTile = ({ pickup, trashTypes }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const statusStyles = {
+    confirmed: 'bg-emerald-100 text-emerald-700',
+    pending: 'bg-yellow-100 text-yellow-700',
+    completed: 'bg-gray-200 text-gray-600'
+  };
+
+  const getItemsPreview = () => {
+    const names = pickup.items
+      .map(id => trashTypes.find(t => t.id === id)?.name)
+      .filter(Boolean);
+    if (names.length <= 2) return names.join(', ');
+    return `${pickup.items.length} items`;
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString('default', { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <div
+      className="bg-white rounded-2xl shadow p-4 space-y-3 cursor-pointer"
+      onClick={() => setExpanded(!expanded)}
+    >
+      <div className="flex items-start space-x-3">
+        {pickup.photos && pickup.photos[0] && (
+          <img
+            src={pickup.photos[0].url}
+            alt="pickup"
+            className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+          />
+        )}
+        <div className="flex-1 space-y-1">
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-semibold text-gray-900">
+              {formatDate(pickup.date)} • {pickup.time}
+            </div>
+            <span
+              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                statusStyles[pickup.status] || 'bg-gray-200 text-gray-600'
+              }`}
+            >
+              {pickup.status?.charAt(0).toUpperCase() + pickup.status?.slice(1)}
+            </span>
+          </div>
+          <div className="text-sm text-gray-600 truncate">{pickup.address}</div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">{getItemsPreview()}</span>
+            {pickup.price && (
+              <span className="text-sm font-semibold text-gray-900">
+                ${pickup.price} est.
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="pt-3 border-t border-gray-200 space-y-2 text-sm text-gray-700">
+          <div>
+            <span className="font-medium">Address:</span> {pickup.address}
+          </div>
+          <div>
+            <span className="font-medium">Items:</span>{' '}
+            {pickup.items
+              .map(id => trashTypes.find(t => t.id === id)?.name)
+              .filter(Boolean)
+              .join(', ')}
+          </div>
+          {pickup.photos && pickup.photos.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {pickup.photos.map(photo => (
+                <img
+                  key={photo.id}
+                  src={photo.url}
+                  alt={photo.name}
+                  className="w-full h-20 object-cover rounded"
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ===== MAIN APP COMPONENT =====
 const TrashPickupApp = () => {
   // State
@@ -184,9 +275,9 @@ const TrashPickupApp = () => {
   ];
 
   const sizeOptions = [
-    { 
-      id: 'small', 
-      name: 'Small Load', 
+    {
+      id: 'small',
+      name: 'Small Load',
       description: 'Pickup truck bed',
       trailers: 1,
       examples: 'Few furniture pieces, small appliances',
@@ -221,6 +312,17 @@ const TrashPickupApp = () => {
       baseFee: 150
     }
   ];
+
+  const calculatePriceEstimate = (items, size) => {
+    const sizeData = sizeOptions.find(s => s.id === size);
+    const itemsCost = items.reduce((total, id) => {
+      const item = trashTypes.find(t => t.id === id);
+      return total + (item ? item.basePrice : 0);
+    }, 0);
+    const totalItemsCost = itemsCost * (sizeData?.multiplier || 1);
+    const total = (sizeData?.baseFee || 0) + totalItemsCost;
+    return Math.round(total);
+  };
 
   // Event Handlers
   const toggleItem = (itemId) => {
@@ -266,7 +368,9 @@ const TrashPickupApp = () => {
       time: pickupTime,
       address,
       contact: accountInfo,
-      photos: uploadedPhotos
+      photos: uploadedPhotos,
+      price: calculatePriceEstimate(selectedItems, estimatedSize),
+      status: 'confirmed'
     };
     try {
       await createBooking(newPickup);
@@ -696,16 +800,7 @@ const TrashPickupApp = () => {
       ) : (
         <div className="space-y-4">
           {scheduledPickups.map(pickup => (
-            <div key={pickup.id} className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
-              <div className="flex items-center text-sm text-gray-600">
-                <Calendar size={16} className="text-emerald-600 mr-2" />
-                {pickup.date} at {pickup.time}
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <MapPin size={16} className="text-emerald-600 mr-2" />
-                {pickup.address}
-              </div>
-            </div>
+            <PickupTile key={pickup.id} pickup={pickup} trashTypes={trashTypes} />
           ))}
         </div>
       )}
