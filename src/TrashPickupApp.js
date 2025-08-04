@@ -122,7 +122,7 @@ const PriceEstimate = ({ selectedItems, estimatedSize, trashTypes, sizeOptions }
 };
 
 // Navigation Buttons Component
-const NavigationButtons = ({ onBack, onNext, nextDisabled = false, nextText = "Continue", backText = "Back" }) => {
+const NavigationButtons = ({ onBack, onNext, nextDisabled = false, nextText = "Continue", backText = "Back", loading = false }) => {
   return (
     <div className="flex space-x-3">
       <button
@@ -134,11 +134,15 @@ const NavigationButtons = ({ onBack, onNext, nextDisabled = false, nextText = "C
       </button>
       <button
         onClick={onNext}
-        disabled={nextDisabled}
+        disabled={nextDisabled || loading}
         type="button"
         className="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors"
       >
-        {nextText}
+        {loading ? (
+          <svg className="animate-spin h-5 w-5 mx-auto text-white" viewBox="0 0 24 24" />
+        ) : (
+          nextText
+        )}
       </button>
     </div>
   );
@@ -253,6 +257,9 @@ const TrashPickupApp = () => {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [customSettings, setCustomSettings] = useState({ notifications: true, theme: 'light' });
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState({});
 
   useEffect(() => {
     async function loadAccountData() {
@@ -261,6 +268,44 @@ const TrashPickupApp = () => {
     }
     loadAccountData();
   }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('bookingForm');
+    if (saved) {
+      const data = JSON.parse(saved);
+      setCurrentStep(data.currentStep || 1);
+      setSelectedItems(data.selectedItems || []);
+      setEstimatedSize(data.estimatedSize || 'small');
+      setPickupDate(data.pickupDate || '');
+      setPickupTime(data.pickupTime || '');
+      setAddress(data.address || '');
+      setAccountInfo(data.accountInfo || { name: '', phone: '', email: '' });
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setPickupDate(tomorrow.toISOString().split('T')[0]);
+      setPickupTime('09:00');
+    }
+  }, []);
+
+  useEffect(() => {
+    const data = {
+      currentStep,
+      selectedItems,
+      estimatedSize,
+      pickupDate,
+      pickupTime,
+      address,
+      accountInfo
+    };
+    localStorage.setItem('bookingForm', JSON.stringify(data));
+  }, [currentStep, selectedItems, estimatedSize, pickupDate, pickupTime, address, accountInfo]);
+
+  useEffect(() => {
+    if (savedAddresses.length > 0 && !address) {
+      setAddress(savedAddresses[0]);
+    }
+  }, [savedAddresses, address]);
 
   // Data
   const trashTypes = [
@@ -359,7 +404,54 @@ const TrashPickupApp = () => {
     setUploadedPhotos(prev => prev.filter(photo => photo.id !== photoId));
   };
 
+  const handleScheduleChange = (field, value) => {
+    if (field === 'pickupDate') setPickupDate(value);
+    if (field === 'pickupTime') setPickupTime(value);
+    if (field === 'address') setAddress(value);
+    setErrors(prev => ({ ...prev, [field]: value ? '' : 'Required' }));
+  };
+
+  const handleAccountChange = (field, value) => {
+    setAccountInfo(prev => ({ ...prev, [field]: value }));
+    let message = '';
+    if (!value) message = 'Required';
+    else if (field === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) message = 'Invalid email';
+    else if (field === 'phone' && !/^\+?[0-9\s-]{7,}$/.test(value)) message = 'Invalid phone';
+    setErrors(prev => ({ ...prev, [field]: message }));
+  };
+
+  useEffect(() => {
+    setCompletedSteps(prev => ({ ...prev, 1: selectedItems.length > 0 }));
+  }, [selectedItems]);
+
+  useEffect(() => {
+    setCompletedSteps(prev => ({ ...prev, 2: !!estimatedSize }));
+  }, [estimatedSize]);
+
+  useEffect(() => {
+    setCompletedSteps(prev => ({ ...prev, 3: uploadedPhotos.length > 0 }));
+  }, [uploadedPhotos]);
+
+  useEffect(() => {
+    const valid = pickupDate && pickupTime && address && !errors.pickupDate && !errors.pickupTime && !errors.address;
+    setCompletedSteps(prev => ({ ...prev, 4: !!valid }));
+  }, [pickupDate, pickupTime, address, errors]);
+
+  useEffect(() => {
+    const phoneValid = /^\+?[0-9\s-]{7,}$/.test(accountInfo.phone);
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountInfo.email);
+    const valid = accountInfo.name && phoneValid && emailValid;
+    setCompletedSteps(prev => ({ ...prev, 5: !!valid }));
+  }, [accountInfo]);
+
+  useEffect(() => {
+    if (currentStep === 6) {
+      setCompletedSteps(prev => ({ ...prev, 6: true }));
+    }
+  }, [currentStep]);
+
   const confirmBooking = async () => {
+    setBookingLoading(true);
     const newPickup = {
       id: Date.now(),
       items: selectedItems,
@@ -374,11 +466,14 @@ const TrashPickupApp = () => {
     };
     try {
       await createBooking(newPickup);
+      setScheduledPickups(prev => [...prev, newPickup]);
+      localStorage.removeItem('bookingForm');
+      setCurrentStep(7);
     } catch (err) {
       console.error('Booking failed', err);
+    } finally {
+      setBookingLoading(false);
     }
-    setScheduledPickups(prev => [...prev, newPickup]);
-    setCurrentStep(7);
   };
 
   const resetBooking = () => {
@@ -389,6 +484,8 @@ const TrashPickupApp = () => {
     setPickupTime('');
     setAddress('');
     setUploadedPhotos([]);
+    setAccountInfo({ name: '', phone: '', email: '' });
+    localStorage.removeItem('bookingForm');
   };
 
   // Render Booking Steps (simplified for length)
@@ -398,7 +495,15 @@ const TrashPickupApp = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">What needs pickup?</h2>
+              <div className="flex items-center mb-2">
+                <h2 className="text-2xl font-bold text-gray-900">What needs pickup?</h2>
+                <CheckCircle2
+                  size={20}
+                  className={`text-emerald-600 ml-2 transform transition-transform duration-200 ${
+                    completedSteps[1] ? 'scale-100' : 'scale-0'
+                  }`}
+                />
+              </div>
               <p className="text-gray-600">Select all that apply</p>
             </div>
 
@@ -448,7 +553,15 @@ const TrashPickupApp = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Estimate size</h2>
+              <div className="flex items-center mb-2">
+                <h2 className="text-2xl font-bold text-gray-900">Estimate size</h2>
+                <CheckCircle2
+                  size={20}
+                  className={`text-emerald-600 ml-2 transform transition-transform duration-200 ${
+                    completedSteps[2] ? 'scale-100' : 'scale-0'
+                  }`}
+                />
+              </div>
               <p className="text-gray-600">How much stuff do you have?</p>
             </div>
 
@@ -500,7 +613,15 @@ const TrashPickupApp = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Add photos</h2>
+              <div className="flex items-center mb-2">
+                <h2 className="text-2xl font-bold text-gray-900">Add photos</h2>
+                <CheckCircle2
+                  size={20}
+                  className={`text-emerald-600 ml-2 transform transition-transform duration-200 ${
+                    completedSteps[3] ? 'scale-100' : 'scale-0'
+                  }`}
+                />
+              </div>
               <p className="text-gray-600">Optional, but helps us quote accurately</p>
             </div>
 
@@ -542,7 +663,15 @@ const TrashPickupApp = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Schedule pickup</h2>
+              <div className="flex items-center mb-2">
+                <h2 className="text-2xl font-bold text-gray-900">Schedule pickup</h2>
+                <CheckCircle2
+                  size={20}
+                  className={`text-emerald-600 ml-2 transform transition-transform duration-200 ${
+                    completedSteps[4] ? 'scale-100' : 'scale-0'
+                  }`}
+                />
+              </div>
               <p className="text-gray-600">Choose date, time & address</p>
             </div>
 
@@ -554,10 +683,11 @@ const TrashPickupApp = () => {
                   <input
                     type="date"
                     value={pickupDate}
-                    onChange={e => setPickupDate(e.target.value)}
+                    onChange={e => handleScheduleChange('pickupDate', e.target.value)}
                     className="w-full border rounded-lg p-3"
                   />
                 </div>
+                {errors.pickupDate && <p className="text-red-500 text-sm mt-1">{errors.pickupDate}</p>}
               </div>
 
               <div>
@@ -567,24 +697,33 @@ const TrashPickupApp = () => {
                   <input
                     type="time"
                     value={pickupTime}
-                    onChange={e => setPickupTime(e.target.value)}
+                    onChange={e => handleScheduleChange('pickupTime', e.target.value)}
                     className="w-full border rounded-lg p-3"
                   />
                 </div>
+                {errors.pickupTime && <p className="text-red-500 text-sm mt-1">{errors.pickupTime}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                 <div className="flex items-start">
                   <MapPin size={20} className="text-gray-400 mr-2 mt-2" />
-                  <textarea
+                  <input
+                    type="text"
+                    list="address-suggestions"
                     className="w-full border rounded-lg p-3"
-                    rows="2"
                     value={address}
-                    onChange={e => setAddress(e.target.value)}
+                    onChange={e => handleScheduleChange('address', e.target.value)}
                     placeholder="Street, City, State"
+                    autoComplete="street-address"
                   />
+                  <datalist id="address-suggestions">
+                    {savedAddresses.map((a, i) => (
+                      <option key={i} value={a} />
+                    ))}
+                  </datalist>
                 </div>
+                {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
               </div>
             </div>
 
@@ -593,7 +732,7 @@ const TrashPickupApp = () => {
             <NavigationButtons
               onBack={() => setCurrentStep(3)}
               onNext={() => setCurrentStep(5)}
-              nextDisabled={!pickupDate || !pickupTime || !address}
+              nextDisabled={!pickupDate || !pickupTime || !address || errors.pickupDate || errors.pickupTime || errors.address}
             />
           </div>
         );
@@ -602,47 +741,68 @@ const TrashPickupApp = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Contact info</h2>
+              <div className="flex items-center mb-2">
+                <h2 className="text-2xl font-bold text-gray-900">Contact info</h2>
+                <CheckCircle2
+                  size={20}
+                  className={`text-emerald-600 ml-2 transform transition-transform duration-200 ${
+                    completedSteps[5] ? 'scale-100' : 'scale-0'
+                  }`}
+                />
+              </div>
               <p className="text-gray-600">How can we reach you?</p>
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center border rounded-xl p-3">
-                <User size={20} className="text-gray-400 mr-2" />
-                <input
-                  type="text"
-                  placeholder="Name"
-                  value={accountInfo.name}
-                  onChange={e => setAccountInfo({ ...accountInfo, name: e.target.value })}
-                  className="w-full outline-none"
-                />
+              <div className="flex flex-col space-y-1">
+                <div className="flex items-center border rounded-xl p-3">
+                  <User size={20} className="text-gray-400 mr-2" />
+                  <input
+                    type="text"
+                    placeholder="Name"
+                    value={accountInfo.name}
+                    onChange={e => handleAccountChange('name', e.target.value)}
+                    className="w-full outline-none"
+                    autoComplete="name"
+                  />
+                </div>
+                {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
               </div>
-              <div className="flex items-center border rounded-xl p-3">
-                <Phone size={20} className="text-gray-400 mr-2" />
-                <input
-                  type="tel"
-                  placeholder="Phone"
-                  value={accountInfo.phone}
-                  onChange={e => setAccountInfo({ ...accountInfo, phone: e.target.value })}
-                  className="w-full outline-none"
-                />
+              <div className="flex flex-col space-y-1">
+                <div className="flex items-center border rounded-xl p-3">
+                  <Phone size={20} className="text-gray-400 mr-2" />
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="Phone"
+                    value={accountInfo.phone}
+                    onChange={e => handleAccountChange('phone', e.target.value)}
+                    className="w-full outline-none"
+                    autoComplete="tel"
+                  />
+                </div>
+                {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
               </div>
-              <div className="flex items-center border rounded-xl p-3">
-                <Mail size={20} className="text-gray-400 mr-2" />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={accountInfo.email}
-                  onChange={e => setAccountInfo({ ...accountInfo, email: e.target.value })}
-                  className="w-full outline-none"
-                />
+              <div className="flex flex-col space-y-1">
+                <div className="flex items-center border rounded-xl p-3">
+                  <Mail size={20} className="text-gray-400 mr-2" />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={accountInfo.email}
+                    onChange={e => handleAccountChange('email', e.target.value)}
+                    className="w-full outline-none"
+                    autoComplete="email"
+                  />
+                </div>
+                {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
               </div>
             </div>
 
             <NavigationButtons
               onBack={() => setCurrentStep(4)}
               onNext={() => setCurrentStep(6)}
-              nextDisabled={!accountInfo.name || !accountInfo.phone || !accountInfo.email}
+              nextDisabled={!accountInfo.name || !accountInfo.phone || !accountInfo.email || errors.name || errors.phone || errors.email}
             />
           </div>
         );
@@ -651,7 +811,15 @@ const TrashPickupApp = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Review</h2>
+              <div className="flex items-center mb-2">
+                <h2 className="text-2xl font-bold text-gray-900">Review</h2>
+                <CheckCircle2
+                  size={20}
+                  className={`text-emerald-600 ml-2 transform transition-transform duration-200 ${
+                    completedSteps[6] ? 'scale-100' : 'scale-0'
+                  }`}
+                />
+              </div>
               <p className="text-gray-600">Confirm your details</p>
             </div>
 
@@ -731,6 +899,7 @@ const TrashPickupApp = () => {
               onBack={() => setCurrentStep(5)}
               onNext={confirmBooking}
               nextText="Confirm"
+              loading={bookingLoading}
             />
           </div>
         );
