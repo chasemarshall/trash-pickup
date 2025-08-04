@@ -1,5 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
+const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
@@ -159,6 +160,15 @@ app.post('/api/users/payments', async (req, res) => {
   } catch (err) {
     handleError(res, err);
   }
+});
+
+app.post('/api/payments/link', (req, res) => {
+  const { amount } = req.body;
+  if (typeof amount !== 'number') {
+    return res.status(400).json({ error: 'amount required' });
+  }
+  const token = crypto.randomBytes(8).toString('hex');
+  res.json({ url: `https://pay.local/checkout/${token}?amount=${amount}` });
 });
 
 app.use((req, res) => {

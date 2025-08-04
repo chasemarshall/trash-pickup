@@ -24,6 +24,7 @@ import {
   fetchPaymentMethods,
   fetchAddresses,
   savePaymentMethod,
+  createLinkPay,
   saveAddress,
   saveCustomizationSettings,
   login,
@@ -263,6 +264,7 @@ const TrashPickupApp = () => {
   const [errors, setErrors] = useState({});
   const [bookingLoading, setBookingLoading] = useState(false);
   const [completedSteps, setCompletedSteps] = useState({});
+  const [linkPayUrl, setLinkPayUrl] = useState('');
 
   useEffect(() => {
     async function loadAccountData() {
@@ -1131,6 +1133,32 @@ const TrashPickupApp = () => {
               >
                 Add
               </button>
+            </div>
+            <div className="pt-4">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const url = await createLinkPay(50);
+                    setLinkPayUrl(url);
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition-colors"
+              >
+                Generate Link Pay
+              </button>
+              {linkPayUrl && (
+                <a
+                  href={linkPayUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 text-blue-600 underline"
+                >
+                  Pay with Link
+                </a>
+              )}
             </div>
           </div>
         )}
