@@ -25,7 +25,9 @@ import {
   fetchAddresses,
   savePaymentMethod,
   saveAddress,
-  saveCustomizationSettings
+  saveCustomizationSettings,
+  login,
+  signup
 } from './api';
 
 // ===== COMPONENTS =====
@@ -253,6 +255,7 @@ const TrashPickupApp = () => {
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [scheduledPickups, setScheduledPickups] = useState([]);
   const [accountSaved, setAccountSaved] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [customSettings, setCustomSettings] = useState({ notifications: true, theme: 'light' });
@@ -466,12 +469,12 @@ const TrashPickupApp = () => {
     };
     try {
       await createBooking(newPickup);
-      setScheduledPickups(prev => [...prev, newPickup]);
-      localStorage.removeItem('bookingForm');
-      setCurrentStep(7);
     } catch (err) {
       console.error('Booking failed', err);
     } finally {
+      setScheduledPickups(prev => [...prev, newPickup]);
+      localStorage.removeItem('bookingForm');
+      setCurrentStep(7);
       setBookingLoading(false);
     }
   };
@@ -980,6 +983,8 @@ const TrashPickupApp = () => {
     const [section, setSection] = useState('payments');
     const [newPayment, setNewPayment] = useState('');
     const [newAddress, setNewAddress] = useState('');
+    const [authMode, setAuthMode] = useState('signin');
+    const [authForm, setAuthForm] = useState({ email: '', password: '' });
 
     const addPayment = async () => {
       if (!newPayment) return;
@@ -1001,45 +1006,97 @@ const TrashPickupApp = () => {
       setTimeout(() => setAccountSaved(false), 2000);
     };
 
+    const handleAuthSubmit = async () => {
+      try {
+        if (authMode === 'signin') {
+          await login(authForm);
+        } else {
+          await signup(authForm);
+        }
+        setIsLoggedIn(true);
+      } catch (err) {
+        console.error('Auth failed', err);
+      }
+    };
+
+    if (!isLoggedIn) {
+      return (
+        <div className="space-y-4">
+          <h1 className="text-2xl font-bold text-gray-900 text-center">Account</h1>
+          <input
+            type="email"
+            value={authForm.email}
+            onChange={e => setAuthForm({ ...authForm, email: e.target.value })}
+            placeholder="Email"
+            className="w-full border border-gray-200 rounded-xl p-3"
+          />
+          <input
+            type="password"
+            value={authForm.password}
+            onChange={e => setAuthForm({ ...authForm, password: e.target.value })}
+            placeholder="Password"
+            className="w-full border border-gray-200 rounded-xl p-3"
+          />
+          <button
+            type="button"
+            onClick={handleAuthSubmit}
+            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+          >
+            {authMode === 'signin' ? 'Sign In' : 'Sign Up'}
+          </button>
+          <p className="text-sm text-center text-gray-600">
+            {authMode === 'signin' ? 'Need an account?' : 'Have an account?'}{' '}
+            <button
+              type="button"
+              className="text-emerald-600"
+              onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+            >
+              {authMode === 'signin' ? 'Sign up' : 'Sign in'}
+            </button>
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-gray-900 text-center">Account</h1>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-3">
           <button
             onClick={() => setSection('payments')}
-            className={`p-4 rounded-xl border text-center ${
+            className={`w-full flex items-center p-4 rounded-xl border ${
               section === 'payments'
                 ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
                 : 'border-gray-200 text-gray-600'
             }`}
             type="button"
           >
-            <CreditCard size={20} className="mx-auto mb-1" />
-            <span className="text-xs font-semibold">Payments</span>
+            <CreditCard size={20} className="mr-2" />
+            <span className="text-sm font-semibold">Payments</span>
           </button>
           <button
             onClick={() => setSection('addresses')}
-            className={`p-4 rounded-xl border text-center ${
+            className={`w-full flex items-center p-4 rounded-xl border ${
               section === 'addresses'
                 ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
                 : 'border-gray-200 text-gray-600'
             }`}
             type="button"
           >
-            <MapPin size={20} className="mx-auto mb-1" />
-            <span className="text-xs font-semibold">Addresses</span>
+            <MapPin size={20} className="mr-2" />
+            <span className="text-sm font-semibold">Addresses</span>
           </button>
           <button
             onClick={() => setSection('settings')}
-            className={`p-4 rounded-xl border text-center ${
+            className={`w-full flex items-center p-4 rounded-xl border ${
               section === 'settings'
                 ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
                 : 'border-gray-200 text-gray-600'
             }`}
             type="button"
           >
-            <Settings size={20} className="mx-auto mb-1" />
-            <span className="text-xs font-semibold">Customization</span>
+            <Settings size={20} className="mr-2" />
+            <span className="text-sm font-semibold">Customization</span>
           </button>
         </div>
 
@@ -1067,11 +1124,11 @@ const TrashPickupApp = () => {
                 placeholder="Card ending 1234"
                 className="flex-1 border border-gray-200 rounded-xl p-3"
               />
-                <button
-                  type="button"
-                  onClick={addPayment}
-                  className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-                >
+              <button
+                type="button"
+                onClick={addPayment}
+                className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
                 Add
               </button>
             </div>
@@ -1102,11 +1159,11 @@ const TrashPickupApp = () => {
                 placeholder="New address"
                 className="flex-1 border border-gray-200 rounded-xl p-3"
               />
-                <button
-                  type="button"
-                  onClick={addAddressHandler}
-                  className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-                >
+              <button
+                type="button"
+                onClick={addAddressHandler}
+                className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
                 Add
               </button>
             </div>
@@ -1166,18 +1223,21 @@ const TrashPickupApp = () => {
                 <option value="dark">Dark</option>
               </select>
             </div>
-              <button
-                type="button"
-                onClick={saveSettings}
-                className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-              >
-              Save Changes
-            </button>
-            {accountSaved && (
-              <div className="text-sm text-center text-emerald-600">Settings saved!</div>
-            )}
           </div>
         )}
+
+        <div className="pt-4">
+          <button
+            type="button"
+            onClick={saveSettings}
+            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+          >
+            Save
+          </button>
+          {accountSaved && (
+            <div className="text-sm text-center text-emerald-600 mt-2">Settings saved!</div>
+          )}
+        </div>
       </div>
     );
   };
