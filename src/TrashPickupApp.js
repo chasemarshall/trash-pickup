@@ -301,6 +301,7 @@ const TrashPickupApp = () => {
             <div className="grid grid-cols-2 gap-3">
               {trashTypes.map((item) => (
                 <button
+                  type="button"
                   key={item.id}
                   onClick={() => toggleItem(item.id)}
                   className={`p-4 rounded-xl border-2 transition-all ${
@@ -326,6 +327,7 @@ const TrashPickupApp = () => {
             <p className="text-xs text-amber-600">Special handling fees may apply for certain items.</p>
 
             <button
+              type="button"
               onClick={() => setCurrentStep(2)}
               disabled={selectedItems.length === 0}
               className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors"
@@ -351,6 +353,7 @@ const TrashPickupApp = () => {
             <div className="space-y-3">
               {sizeOptions.map((size) => (
                 <button
+                  type="button"
                   key={size.id}
                   onClick={() => setEstimatedSize(size.id)}
                   className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
@@ -412,6 +415,7 @@ const TrashPickupApp = () => {
                     <div key={photo.id} className="relative">
                       <img src={photo.url} alt={photo.name} className="w-full h-24 object-cover rounded-lg" />
                       <button
+                        type="button"
                         onClick={() => removePhoto(photo.id)}
                         className="absolute -top-2 -right-2 bg-black bg-opacity-50 rounded-full p-1"
                       >
@@ -639,10 +643,11 @@ const TrashPickupApp = () => {
               <p className="text-gray-600">We'll be in touch with next steps.</p>
             </div>
 
-            <button
-              onClick={resetBooking}
-              className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-            >
+              <button
+                type="button"
+                onClick={resetBooking}
+                className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
               Book Another Pickup
             </button>
           </div>
@@ -662,10 +667,11 @@ const TrashPickupApp = () => {
         </div>
       ) : (
         <div className="flex items-center space-x-4 mb-6">
-          <button
-            onClick={() => (currentStep > 1 ? setCurrentStep(currentStep - 1) : resetBooking())}
-            className="p-3 hover:bg-gray-100 rounded-xl transition-colors"
-          >
+            <button
+              type="button"
+              onClick={() => (currentStep > 1 ? setCurrentStep(currentStep - 1) : resetBooking())}
+              className="p-3 hover:bg-gray-100 rounded-xl transition-colors"
+            >
             <ArrowLeft size={22} className="text-gray-600" />
           </button>
           <div>
@@ -797,10 +803,11 @@ const TrashPickupApp = () => {
                 placeholder="Card ending 1234"
                 className="flex-1 border border-gray-200 rounded-xl p-3"
               />
-              <button
-                onClick={addPayment}
-                className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-              >
+                <button
+                  type="button"
+                  onClick={addPayment}
+                  className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+                >
                 Add
               </button>
             </div>
@@ -831,10 +838,11 @@ const TrashPickupApp = () => {
                 placeholder="New address"
                 className="flex-1 border border-gray-200 rounded-xl p-3"
               />
-              <button
-                onClick={addAddressHandler}
-                className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-              >
+                <button
+                  type="button"
+                  onClick={addAddressHandler}
+                  className="bg-emerald-600 text-white px-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+                >
                 Add
               </button>
             </div>
@@ -894,10 +902,11 @@ const TrashPickupApp = () => {
                 <option value="dark">Dark</option>
               </select>
             </div>
-            <button
-              onClick={saveSettings}
-              className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-            >
+              <button
+                type="button"
+                onClick={saveSettings}
+                className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
               Save Changes
             </button>
             {accountSaved && (
@@ -922,36 +931,39 @@ const TrashPickupApp = () => {
         {/* Bottom Navigation */}
         <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm bg-white border-t border-gray-200">
           <div className="flex">
-            <button
-              onClick={() => setCurrentTab('home')}
-              className={`flex-1 py-4 px-4 text-center transition-colors ${
-                currentTab === 'home'
-                  ? 'text-emerald-600'
-                  : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
+              <button
+                type="button"
+                onClick={() => setCurrentTab('home')}
+                className={`flex-1 py-4 px-4 text-center transition-colors ${
+                  currentTab === 'home'
+                    ? 'text-emerald-600'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
               <Plus size={22} className="mx-auto mb-1" />
               <span className="text-xs font-bold">Book</span>
             </button>
-            <button
-              onClick={() => setCurrentTab('pickups')}
-              className={`flex-1 py-4 px-4 text-center transition-colors ${
-                currentTab === 'pickups'
-                  ? 'text-emerald-600'
-                  : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
+              <button
+                type="button"
+                onClick={() => setCurrentTab('pickups')}
+                className={`flex-1 py-4 px-4 text-center transition-colors ${
+                  currentTab === 'pickups'
+                    ? 'text-emerald-600'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
               <List size={22} className="mx-auto mb-1" />
               <span className="text-xs font-bold">Pickups</span>
             </button>
-            <button
-              onClick={() => setCurrentTab('account')}
-              className={`flex-1 py-4 px-4 text-center transition-colors ${
-                currentTab === 'account'
-                  ? 'text-emerald-600'
-                  : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
+              <button
+                type="button"
+                onClick={() => setCurrentTab('account')}
+                className={`flex-1 py-4 px-4 text-center transition-colors ${
+                  currentTab === 'account'
+                    ? 'text-emerald-600'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
               <User size={22} className="mx-auto mb-1" />
               <span className="text-xs font-bold">Account</span>
             </button>
