@@ -15,18 +15,12 @@ export async function analyzeImages(files) {
 }
 
 export async function createBooking(data) {
-  try {
-    const response = await fetch('/api/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Booking failed');
-    return await response.json();
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+  // Placeholder for sending booking to backend
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({ success: true, booking: data });
+    }, 300);
+  });
 }
 
 export async function fetchPaymentMethods() {
@@ -52,4 +46,13 @@ export async function saveAddress(address) {
 export async function saveCustomizationSettings(settings) {
   // Placeholder for saving user customization settings
   return settings;
+}
+
+// Placeholder authentication helpers
+export async function login(credentials) {
+  return { email: credentials.email };
+}
+
+export async function signup(details) {
+  return { email: details.email };
 }
