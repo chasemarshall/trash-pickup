@@ -1,5 +1,109 @@
-import React, { useState } from 'react';
-import { Calendar, MapPin, Truck, Package, Clock, CheckCircle2, User, List, Plus, ArrowLeft, Phone, Mail, Camera, X, DollarSign, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Calendar,
+  MapPin,
+  Truck,
+  Package,
+  Clock,
+  CheckCircle2,
+  User,
+  List,
+  Plus,
+  ArrowLeft,
+  Phone,
+  Mail,
+  Camera,
+  X,
+  DollarSign,
+  CreditCard,
+  Settings,
+  AlertCircle
+} from 'lucide-react';
+
+// ===== API FUNCTIONS =====
+const api = {
+  async analyzeImages(files) {
+    const formData = new FormData();
+    files.forEach(file => formData.append('images', file));
+    
+    // Simulate API call
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          detectedItems: ['furniture', 'electronics'],
+          suggestedSize: 'medium',
+          confidence: 0.85
+        });
+      }, 1500);
+    });
+  },
+
+  async createBooking(data) {
+    // This is what would be sent to your backend
+    const bookingPayload = {
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      customer: {
+        name: data.contact.name,
+        phone: data.contact.phone,
+        email: data.contact.email
+      },
+      pickup: {
+        date: data.date,
+        time: data.time,
+        address: data.address
+      },
+      items: data.items.map(itemId => ({
+        id: itemId,
+        name: data.itemNames[itemId] || itemId
+      })),
+      estimatedSize: data.size,
+      photos: data.photos.map(photo => ({
+        id: photo.id,
+        name: photo.name,
+        url: photo.url // In real app, this would be uploaded to cloud storage
+      })),
+      status: 'pending',
+      estimatedPrice: data.estimatedPrice
+    };
+
+    console.log('📤 Booking payload that would be sent to backend:', bookingPayload);
+    
+    // Simulate API call
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          success: true,
+          bookingId: bookingPayload.id,
+          confirmationNumber: `TP${bookingPayload.id.toString().slice(-6)}`
+        });
+      }, 1000);
+    });
+  },
+
+  async fetchPaymentMethods() {
+    return [];
+  },
+
+  async savePaymentMethod(method) {
+    console.log('💳 Saving payment method:', method);
+    return method;
+  },
+
+  async fetchAddresses() {
+    return [];
+  },
+
+  async saveAddress(address) {
+    console.log('📍 Saving address:', address);
+    return address;
+  },
+
+  async saveCustomizationSettings(settings) {
+    console.log('⚙️ Saving settings:', settings);
+    return settings;
+  }
+};
 
 // ===== COMPONENTS =====
 
@@ -19,6 +123,8 @@ const Disclaimer = ({ type = "general" }) => {
     </div>
   );
 };
+
+export default TrashPickupApp;
 
 // Trailer Visualization Component
 const TrailerVisualization = ({ size }) => {
@@ -106,7 +212,7 @@ const PriceEstimate = ({ selectedItems, estimatedSize, trashTypes, sizeOptions }
         </div>
       </div>
       
-      <p className="text-xs text-gray-500">Final price may vary based on exact items and location</p>
+      <p className="text-xs text-gray-500">Final pricing confirmed upon inspection</p>
     </div>
   );
 };
@@ -117,6 +223,7 @@ const NavigationButtons = ({ onBack, onNext, nextDisabled = false, nextText = "C
     <div className="flex space-x-3">
       <button
         onClick={onBack}
+        type="button"
         className="flex-1 bg-gray-200 text-gray-800 py-4 rounded-xl font-bold hover:bg-gray-300 transition-colors"
       >
         {backText}
@@ -124,184 +231,11 @@ const NavigationButtons = ({ onBack, onNext, nextDisabled = false, nextText = "C
       <button
         onClick={onNext}
         disabled={nextDisabled}
+        type="button"
         className="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors"
       >
         {nextText}
       </button>
-    </div>
-  );
-};
-
-// Photo Upload Component
-const PhotoUpload = ({ uploadedPhotos, onPhotoUpload, onRemovePhoto }) => {
-  return (
-    <div className="space-y-4">
-      <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
-        <Camera size={32} className="text-gray-400 mx-auto mb-3" />
-        <p className="font-semibold text-gray-700 mb-1">Take photos of your items</p>
-        <p className="text-sm text-gray-500 mb-4">This helps us give you the best price</p>
-        
-        <label className="inline-block bg-emerald-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-emerald-700 cursor-pointer transition-colors">
-          Choose Photos
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={onPhotoUpload}
-            className="hidden"
-          />
-        </label>
-      </div>
-
-      {uploadedPhotos.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="font-semibold text-gray-900">Uploaded Photos ({uploadedPhotos.length})</h4>
-          <div className="grid grid-cols-2 gap-3">
-            {uploadedPhotos.map((photo) => (
-              <div key={photo.id} className="relative">
-                <img
-                  src={photo.url}
-                  alt={photo.name}
-                  className="w-full h-24 object-cover rounded-lg"
-                />
-                <button
-                  onClick={() => onRemovePhoto(photo.id)}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ===== TAB COMPONENTS =====
-
-// Account Tab
-const AccountTab = () => (
-  <div className="space-y-6">
-    <div className="flex items-center space-x-4 pb-4 border-b border-gray-200">
-      <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center">
-        <User size={24} className="text-gray-600" />
-      </div>
-      <div>
-        <h3 className="font-bold text-gray-900">John Doe</h3>
-        <p className="text-sm text-gray-600">john.doe@email.com</p>
-      </div>
-    </div>
-
-    <div className="space-y-4">
-      <h4 className="font-semibold text-gray-900">Account Settings</h4>
-      
-      <button className="w-full text-left p-4 hover:bg-gray-50 rounded-xl transition-colors">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <User size={18} className="text-gray-500" />
-            <span className="font-medium text-gray-800">Profile Information</span>
-          </div>
-          <div className="text-gray-400">›</div>
-        </div>
-      </button>
-
-      <button className="w-full text-left p-4 hover:bg-gray-50 rounded-xl transition-colors">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <MapPin size={18} className="text-gray-500" />
-            <span className="font-medium text-gray-800">Saved Addresses</span>
-          </div>
-          <div className="text-gray-400">›</div>
-        </div>
-      </button>
-
-      <button className="w-full text-left p-4 hover:bg-gray-50 rounded-xl transition-colors">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Phone size={18} className="text-gray-500" />
-            <span className="font-medium text-gray-800">Contact Preferences</span>
-          </div>
-          <div className="text-gray-400">›</div>
-        </div>
-      </button>
-    </div>
-  </div>
-);
-
-// Pickups Tab
-const PickupsTab = () => {
-  const scheduledPickups = [
-    {
-      id: 1,
-      date: '2025-08-10',
-      time: 'Morning (8AM-12PM)',
-      items: ['Furniture', 'Mattresses'],
-      size: 'Medium Load',
-      status: 'Confirmed',
-      address: '123 Main St, Houston, TX',
-      estimatedPrice: 180
-    },
-    {
-      id: 2,
-      date: '2025-08-15',
-      time: 'Afternoon (12PM-4PM)',
-      items: ['Electronics', 'Paint Cans'],
-      size: 'Small Load',
-      status: 'Pending',
-      address: '456 Oak Ave, Houston, TX',
-      estimatedPrice: 95
-    }
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-gray-900">Scheduled Pickups</h3>
-        <span className="text-sm text-gray-500">{scheduledPickups.length} total</span>
-      </div>
-
-      <div className="space-y-4">
-        {scheduledPickups.map((pickup) => (
-          <div key={pickup.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="font-bold text-gray-900">{pickup.date}</p>
-                <p className="text-sm text-gray-600">{pickup.time}</p>
-                <p className="text-sm text-gray-500">{pickup.address}</p>
-              </div>
-              <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                pickup.status === 'Confirmed' 
-                  ? 'bg-emerald-100 text-emerald-800' 
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {pickup.status}
-              </span>
-            </div>
-            
-            <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Items: {pickup.items.join(', ')}</p>
-                <p className="text-sm text-gray-600">Size: {pickup.size}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-bold text-emerald-600">${pickup.estimatedPrice}</p>
-                <p className="text-xs text-gray-500">estimated</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {scheduledPickups.length === 0 && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Calendar size={24} className="text-gray-400" />
-          </div>
-          <p className="text-gray-500 font-medium">No pickups scheduled</p>
-        </div>
-      )}
     </div>
   );
 };
@@ -316,8 +250,54 @@ const TrashPickupApp = () => {
   const [pickupDate, setPickupDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [address, setAddress] = useState('');
-  const [contactInfo, setContactInfo] = useState({ name: '', phone: '', email: '' });
+  const [accountInfo, setAccountInfo] = useState({ name: '', phone: '', email: '' });
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
+  const [scheduledPickups, setScheduledPickups] = useState([
+    {
+      id: 1,
+      date: '2025-08-10',
+      time: 'morning',
+      timeDisplay: 'Morning (8AM-12PM)',
+      items: ['furniture', 'mattresses'],
+      itemsDisplay: 'Furniture, Mattresses',
+      size: 'medium',
+      sizeDisplay: 'Medium Load',
+      status: 'confirmed',
+      address: '123 Main St, Houston, TX',
+      estimatedPrice: 180,
+      contact: { name: 'John Doe', phone: '(555) 123-4567', email: 'john@example.com' },
+      confirmationNumber: 'TP123456'
+    },
+    {
+      id: 2,
+      date: '2025-08-15',
+      time: 'afternoon',
+      timeDisplay: 'Afternoon (12PM-4PM)',
+      items: ['electronics', 'paint-cans'],
+      itemsDisplay: 'Electronics, Paint Cans',
+      size: 'small',
+      sizeDisplay: 'Small Load',
+      status: 'pending',
+      address: '456 Oak Ave, Houston, TX',
+      estimatedPrice: 95,
+      contact: { name: 'Jane Smith', phone: '(555) 987-6543', email: 'jane@example.com' },
+      confirmationNumber: 'TP789012'
+    }
+  ]);
+  const [accountSaved, setAccountSaved] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [customSettings, setCustomSettings] = useState({ notifications: true, theme: 'light' });
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  useEffect(() => {
+    async function loadAccountData() {
+      setPaymentMethods(await api.fetchPaymentMethods());
+      setSavedAddresses(await api.fetchAddresses());
+    }
+    loadAccountData();
+  }, []);
 
   // Data
   const trashTypes = [
@@ -379,8 +359,10 @@ const TrashPickupApp = () => {
     );
   };
 
-  const handlePhotoUpload = (event) => {
+  const handlePhotoUpload = async (event) => {
     const files = Array.from(event.target.files);
+    
+    // Add photos to state immediately
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -392,10 +374,84 @@ const TrashPickupApp = () => {
       };
       reader.readAsDataURL(file);
     });
+
+    // Analyze images in background
+    setIsAnalyzing(true);
+    try {
+      const result = await api.analyzeImages(files);
+      setAnalysisResult(result);
+    } catch (err) {
+      console.error('Image analysis failed', err);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const removePhoto = (photoId) => {
     setUploadedPhotos(prev => prev.filter(photo => photo.id !== photoId));
+  };
+
+  const confirmBooking = async () => {
+    const selectedSizeData = sizeOptions.find(s => s.id === estimatedSize);
+    const itemsCost = selectedItems.reduce((total, itemId) => {
+      const item = trashTypes.find(t => t.id === itemId);
+      return total + (item ? item.basePrice : 0);
+    }, 0);
+    const totalItemsCost = itemsCost * selectedSizeData.multiplier;
+    const estimatedPrice = Math.round(selectedSizeData.baseFee + totalItemsCost);
+
+    const itemNames = {};
+    selectedItems.forEach(itemId => {
+      const item = trashTypes.find(t => t.id === itemId);
+      if (item) itemNames[itemId] = item.name;
+    });
+
+    const bookingData = {
+      items: selectedItems,
+      itemNames,
+      size: estimatedSize,
+      date: pickupDate,
+      time: pickupTime,
+      address,
+      contact: accountInfo,
+      photos: uploadedPhotos,
+      estimatedPrice
+    };
+
+    try {
+      const response = await api.createBooking(bookingData);
+      
+      // Add to scheduled pickups
+      const newPickup = {
+        id: response.bookingId,
+        date: pickupDate,
+        time: pickupTime,
+        timeDisplay: getTimeDisplay(pickupTime),
+        items: selectedItems,
+        itemsDisplay: selectedItems.map(id => itemNames[id]).join(', '),
+        size: estimatedSize,
+        sizeDisplay: selectedSizeData.name,
+        status: 'pending',
+        address,
+        estimatedPrice,
+        contact: accountInfo,
+        confirmationNumber: response.confirmationNumber
+      };
+      
+      setScheduledPickups(prev => [...prev, newPickup]);
+      setCurrentStep(7);
+    } catch (err) {
+      console.error('Booking failed', err);
+    }
+  };
+
+  const getTimeDisplay = (timeValue) => {
+    const timeMap = {
+      'morning': 'Morning (8AM-12PM)',
+      'afternoon': 'Afternoon (12PM-4PM)',
+      'evening': 'Evening (4PM-8PM)'
+    };
+    return timeMap[timeValue] || timeValue;
   };
 
   const resetBooking = () => {
@@ -405,11 +461,17 @@ const TrashPickupApp = () => {
     setPickupDate('');
     setPickupTime('');
     setAddress('');
-    setContactInfo({ name: '', phone: '', email: '' });
     setUploadedPhotos([]);
+    setAnalysisResult(null);
   };
 
-  // Render ALL Booking Steps
+  // Get minimum date (today)
+  const getMinDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
+  // Render Booking Steps
   const renderBookingStep = () => {
     switch (currentStep) {
       case 1:
@@ -423,6 +485,7 @@ const TrashPickupApp = () => {
             <div className="grid grid-cols-2 gap-3">
               {trashTypes.map((item) => (
                 <button
+                  type="button"
                   key={item.id}
                   onClick={() => toggleItem(item.id)}
                   className={`p-4 rounded-xl border-2 transition-all ${
@@ -438,7 +501,7 @@ const TrashPickupApp = () => {
               ))}
             </div>
 
-            <PriceEstimate 
+            <PriceEstimate
               selectedItems={selectedItems}
               estimatedSize={estimatedSize}
               trashTypes={trashTypes}
@@ -448,6 +511,7 @@ const TrashPickupApp = () => {
             <Disclaimer type="items" />
 
             <button
+              type="button"
               onClick={() => setCurrentStep(2)}
               disabled={selectedItems.length === 0}
               className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors"
@@ -473,6 +537,7 @@ const TrashPickupApp = () => {
             <div className="space-y-3">
               {sizeOptions.map((size) => (
                 <button
+                  type="button"
                   key={size.id}
                   onClick={() => setEstimatedSize(size.id)}
                   className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
@@ -500,7 +565,7 @@ const TrashPickupApp = () => {
               ))}
             </div>
 
-            <PriceEstimate 
+            <PriceEstimate
               selectedItems={selectedItems}
               estimatedSize={estimatedSize}
               trashTypes={trashTypes}
@@ -517,15 +582,53 @@ const TrashPickupApp = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Add photos (optional)</h2>
-              <p className="text-gray-600">Help us provide a more accurate estimate</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Add photos</h2>
+              <p className="text-gray-600">Optional, but helps us quote accurately</p>
             </div>
 
-            <PhotoUpload 
-              uploadedPhotos={uploadedPhotos}
-              onPhotoUpload={handlePhotoUpload}
-              onRemovePhoto={removePhoto}
-            />
+            <div className="space-y-4">
+              <label className="w-full flex flex-col items-center justify-center px-4 py-6 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-gray-400 transition-colors">
+                <Camera size={32} className="text-gray-400 mb-2" />
+                <span className="font-semibold text-gray-600">Upload photos</span>
+                <span className="text-sm text-gray-500 mt-1">Tap to select images</span>
+                <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
+              </label>
+
+              {isAnalyzing && (
+                <div className="text-center py-4">
+                  <div className="inline-flex items-center space-x-2 text-emerald-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600"></div>
+                    <span className="text-sm">Analyzing photos...</span>
+                  </div>
+                </div>
+              )}
+
+              {uploadedPhotos.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-gray-900">Uploaded Photos ({uploadedPhotos.length})</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    {uploadedPhotos.map(photo => (
+                      <div key={photo.id} className="relative">
+                        <img src={photo.url} alt={photo.name} className="w-full h-24 object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(photo.id)}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {analysisResult && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                  <p className="text-sm text-emerald-800">✨ AI detected: {analysisResult.detectedItems.join(', ')}</p>
+                </div>
+              )}
+            </div>
 
             <Disclaimer type="photos" />
 
@@ -538,45 +641,54 @@ const TrashPickupApp = () => {
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Schedule pickup</h2>
-              <p className="text-gray-600">When and where?</p>
+              <p className="text-gray-600">Choose date, time & address</p>
             </div>
 
             <div className="space-y-4">
               <div>
                 <label className="block font-semibold text-gray-800 mb-2">Address</label>
-                <textarea
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Enter pickup address..."
-                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  rows="2"
-                />
+                <div className="relative">
+                  <MapPin size={20} className="absolute left-3 top-3 text-gray-400" />
+                  <textarea
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Enter pickup address..."
+                    className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                    rows="2"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-gray-800 mb-2">Date</label>
-                  <input
-                    type="date"
-                    value={pickupDate}
-                    onChange={(e) => setPickupDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  />
+                  <div className="relative">
+                    <Calendar size={20} className="absolute left-3 top-3 text-gray-400 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={pickupDate}
+                      onChange={(e) => setPickupDate(e.target.value)}
+                      min={getMinDate()}
+                      className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block font-semibold text-gray-800 mb-2">Time</label>
-                  <select
-                    value={pickupTime}
-                    onChange={(e) => setPickupTime(e.target.value)}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  >
-                    <option value="">Select</option>
-                    <option value="morning">Morning (8AM-12PM)</option>
-                    <option value="afternoon">Afternoon (12PM-4PM)</option>
-                    <option value="evening">Evening (4PM-8PM)</option>
-                  </select>
+                  <div className="relative">
+                    <Clock size={20} className="absolute left-3 top-3 text-gray-400 pointer-events-none" />
+                    <select
+                      value={pickupTime}
+                      onChange={(e) => setPickupTime(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 appearance-none bg-white"
+                    >
+                      <option value="">Select time</option>
+                      <option value="morning">Morning (8AM-12PM)</option>
+                      <option value="afternoon">Afternoon (12PM-4PM)</option>
+                      <option value="evening">Evening (4PM-8PM)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -607,51 +719,42 @@ const TrashPickupApp = () => {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="block font-semibold text-gray-800 mb-2">Name</label>
+              <div className="relative">
+                <User size={20} className="absolute left-3 top-3 text-gray-400" />
                 <input
                   type="text"
-                  value={contactInfo.name}
-                  onChange={(e) => setContactInfo(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Full name"
-                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  value={accountInfo.name}
+                  onChange={(e) => setAccountInfo({ ...accountInfo, name: e.target.value })}
+                  className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
-
-              <div>
-                <label className="block font-semibold text-gray-800 mb-2">Phone</label>
+              <div className="relative">
+                <Phone size={20} className="absolute left-3 top-3 text-gray-400" />
                 <input
                   type="tel"
-                  value={contactInfo.phone}
-                  onChange={(e) => setContactInfo(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="(555) 123-4567"
-                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Phone number"
+                  value={accountInfo.phone}
+                  onChange={(e) => setAccountInfo({ ...accountInfo, phone: e.target.value })}
+                  className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
-
-              <div>
-                <label className="block font-semibold text-gray-800 mb-2">Email</label>
+              <div className="relative">
+                <Mail size={20} className="absolute left-3 top-3 text-gray-400" />
                 <input
                   type="email"
-                  value={contactInfo.email}
-                  onChange={(e) => setContactInfo(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="email@example.com"
-                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Email address"
+value={accountInfo.email}
+                  onChange={(e) => setAccountInfo({ ...accountInfo, email: e.target.value })}
+                  className="w-full pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
               </div>
             </div>
 
-            <PriceEstimate 
-              selectedItems={selectedItems}
-              estimatedSize={estimatedSize}
-              trashTypes={trashTypes}
-              sizeOptions={sizeOptions}
-            />
-
-            <NavigationButtons 
-              onBack={() => setCurrentStep(4)} 
-              onNext={() => setCurrentStep(6)} 
-              nextDisabled={!contactInfo.name || !contactInfo.phone || !contactInfo.email}
+            <NavigationButtons
+              onBack={() => setCurrentStep(4)}
+              onNext={() => setCurrentStep(6)}
+              nextDisabled={!accountInfo.name || !accountInfo.phone || !accountInfo.email}
               nextText="Review"
             />
           </div>
@@ -679,182 +782,494 @@ const TrashPickupApp = () => {
               <p className="text-gray-600">Confirm your details</p>
             </div>
 
-            <div className="space-y-4 p-5 bg-gray-50 rounded-xl">
-              <div>
-                <h4 className="font-bold text-gray-900 mb-1">Items</h4>
+            <div className="space-y-4">
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Package size={18} className="text-emerald-600" />
+                  <h3 className="font-semibold text-gray-900">Items</h3>
+                </div>
                 <p className="text-gray-700">{selectedItemNames}</p>
               </div>
 
-              <div>
-                <h4 className="font-bold text-gray-900 mb-1">Size</h4>
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center space-x-2 mb-1">
+                  <Truck size={18} className="text-emerald-600" />
+                  <h3 className="font-semibold text-gray-900">Load size</h3>
+                </div>
                 <p className="text-gray-700">{selectedSizeInfo?.name}</p>
               </div>
 
-              <div>
-                <h4 className="font-bold text-gray-900 mb-1">Pickup</h4>
-                <p className="text-gray-700">{pickupDate} • {pickupTime}</p>
-                <p className="text-sm text-gray-600 mt-1">{address}
-</div>
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center space-x-2 mb-1">
+                  <Calendar size={18} className="text-emerald-600" />
+                  <h3 className="font-semibold text-gray-900">Schedule</h3>
+                </div>
+                <p className="text-gray-700">{pickupDate} • {getTimeDisplay(pickupTime)}</p>
+                <p className="text-sm text-gray-600 mt-1">{address}</p>
+              </div>
 
-             <div>
-               <h4 className="font-bold text-gray-900 mb-1">Contact</h4>
-               <p className="text-gray-700">{contactInfo.name}</p>
-               <p className="text-sm text-gray-600">{contactInfo.phone} • {contactInfo.email}</p>
-             </div>
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center space-x-2 mb-1">
+                  <User size={18} className="text-emerald-600" />
+                  <h3 className="font-semibold text-gray-900">Contact</h3>
+                </div>
+                <p className="text-gray-700">{accountInfo.name}</p>
+                <p className="text-sm text-gray-600">{accountInfo.phone} • {accountInfo.email}</p>
+              </div>
 
-             {uploadedPhotos.length > 0 && (
-               <div>
-                 <h4 className="font-bold text-gray-900 mb-2">Photos</h4>
-                 <div className="grid grid-cols-4 gap-2">
-                   {uploadedPhotos.map((photo) => (
-                     <img
-                       key={photo.id}
-                       src={photo.url}
-                       alt={photo.name}
-                       className="w-full h-12 object-cover rounded-lg"
-                     />
-                   ))}
-                 </div>
-               </div>
-             )}
-           </div>
+              {uploadedPhotos.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Camera size={18} className="text-emerald-600" />
+                    <h3 className="font-semibold text-gray-900">Photos ({uploadedPhotos.length})</h3>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {uploadedPhotos.map(photo => (
+                      <img
+                        key={photo.id}
+                        src={photo.url}
+                        alt={photo.name}
+                        className="w-full h-12 object-cover rounded-lg"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-           <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-5">
-             <div className="flex items-center justify-between mb-2">
-               <h4 className="font-bold text-gray-900">Estimated Total</h4>
-               <span className="text-2xl font-bold text-emerald-600">${estimate.total}</span>
-             </div>
-             <p className="text-sm text-gray-600">Final price confirmed after inspection</p>
-           </div>
+              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold text-gray-900">Estimated Total</h4>
+                  <span className="text-2xl font-bold text-emerald-600">${estimate.total}</span>
+                </div>
+                <p className="text-sm text-gray-600">Final price confirmed after inspection</p>
+              </div>
+            </div>
 
-           <Disclaimer type="general" />
+            <Disclaimer type="general" />
 
-           <NavigationButtons 
-             onBack={() => setCurrentStep(5)} 
-             onNext={() => setCurrentStep(7)} 
-             nextText="Confirm Booking"
-           />
-         </div>
-       );
+            <NavigationButtons 
+              onBack={() => setCurrentStep(5)} 
+              onNext={confirmBooking} 
+              nextText="Confirm Booking"
+            />
+          </div>
+        );
 
-     case 7:
-       return (
-         <div className="text-center space-y-6">
-           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-             <CheckCircle2 size={32} className="text-emerald-600" />
-           </div>
-           
-           <div>
-             <h2 className="text-2xl font-bold text-gray-900 mb-2">Booking confirmed!</h2>
-             <p className="text-gray-600">We'll contact you soon with details and pricing.</p>
-           </div>
+      case 7:
+        return (
+          <div className="text-center space-y-6">
+            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle2 size={32} className="text-emerald-600" />
+            </div>
 
-           <div className="text-left bg-gray-50 rounded-xl p-5">
-             <h4 className="font-bold text-gray-900 mb-3">What's next?</h4>
-             <ul className="text-sm text-gray-700 space-y-2">
-               <li>• Confirmation call within 2 hours</li>
-               <li>• Email quote with final pricing</li>
-               <li>• Reminder 24 hours before pickup</li>
-               <li>• We'll only pick up items as discussed</li>
-             </ul>
-           </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Booking confirmed!</h2>
+              <p className="text-gray-600">We'll contact you soon with details and pricing.</p>
+            </div>
 
-           <button
-             onClick={resetBooking}
-             className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-           >
-             Book another pickup
-           </button>
-         </div>
-       );
+            <div className="text-left bg-gray-50 rounded-xl p-5">
+              <h4 className="font-bold text-gray-900 mb-3">What's next?</h4>
+              <ul className="text-sm text-gray-700 space-y-2">
+                <li>• Confirmation call within 2 hours</li>
+                <li>• Email quote with final pricing</li>
+                <li>• Reminder 24 hours before pickup</li>
+                <li>• We'll only pick up items as discussed</li>
+              </ul>
+            </div>
 
-     default:
-       return null;
-   }
- };
+            <button
+              type="button"
+              onClick={resetBooking}
+              className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+            >
+              Book another pickup
+            </button>
+          </div>
+        );
 
- const HomeTab = () => (
-   <div className="space-y-6">
-     {currentStep === 1 ? (
-       <div className="text-center space-y-3 mb-8">
-         <h1 className="text-3xl font-bold text-gray-900">TrashPick</h1>
-         <p className="text-gray-600">Simple junk removal</p>
-       </div>
-     ) : (
-       <div className="flex items-center space-x-4 mb-6">
-         <button 
-           onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : resetBooking()}
-           className="p-3 hover:bg-gray-100 rounded-xl transition-colors"
-         >
-           <ArrowLeft size={22} className="text-gray-600" />
-         </button>
-         <div>
-           <h1 className="text-xl font-bold text-gray-900">New Pickup</h1>
-           <p className="text-sm text-gray-500">Step {currentStep} of 7</p>
-         </div>
-       </div>
-     )}
+      default:
+        return null;
+    }
+  };
 
-     {renderBookingStep()}
-   </div>
- );
+  const HomeTab = () => (
+    <div className="space-y-6">
+      {currentStep === 1 ? (
+        <div className="text-center space-y-3 mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">TrashPick</h1>
+          <p className="text-gray-600">Simple junk removal</p>
+        </div>
+      ) : (
+        <div className="flex items-center space-x-4 mb-6">
+          <button
+            type="button"
+            onClick={() => (currentStep > 1 ? setCurrentStep(currentStep - 1) : resetBooking())}
+            className="p-3 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <ArrowLeft size={22} className="text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">New Pickup</h1>
+            <p className="text-sm text-gray-500">Step {currentStep} of 7</p>
+          </div>
+        </div>
+      )}
 
- return (
-   <div className="min-h-screen bg-white">
-     <div className="max-w-sm mx-auto">
-       {/* Main Content */}
-       <div className="px-5 py-6 pb-24">
-         {currentTab === 'home' && <HomeTab />}
-         {currentTab === 'pickups' && <PickupsTab />}
-         {currentTab === 'account' && <AccountTab />}
-       </div>
+      {renderBookingStep()}
+    </div>
+  );
 
-       {/* Bottom Navigation */}
-       <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm bg-white border-t border-gray-200">
-         <div className="flex">
-           <button
-             onClick={() => {
-               setCurrentTab('home');
-               if (currentStep === 7) resetBooking();
-             }}
-             className={`flex-1 py-4 px-4 text-center transition-colors ${
-               currentTab === 'home' 
-                 ? 'text-emerald-600' 
-                 : 'text-gray-400 hover:text-gray-600'
-             }`}
-           >
-             <Plus size={22} className="mx-auto mb-1" />
-             <span className="text-xs font-bold">Book</span>
-           </button>
-           
-           <button
-             onClick={() => setCurrentTab('pickups')}
-             className={`flex-1 py-4 px-4 text-center transition-colors ${
-               currentTab === 'pickups' 
-                 ? 'text-emerald-600' 
-                 : 'text-gray-400 hover:text-gray-600'
-             }`}
-           >
-             <List size={22} className="mx-auto mb-1" />
-             <span className="text-xs font-bold">Pickups</span>
-           </button>
-           
-           <button
-             onClick={() => setCurrentTab('account')}
-             className={`flex-1 py-4 px-4 text-center transition-colors ${
-               currentTab === 'account' 
-                 ? 'text-emerald-600' 
-                 : 'text-gray-400 hover:text-gray-600'
-             }`}
-           >
-             <User size={22} className="mx-auto mb-1" />
-             <span className="text-xs font-bold">Account</span>
-           </button>
-         </div>
-       </div>
-     </div>
-   </div>
- );
+  const PickupsTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Scheduled Pickups</h1>
+        <span className="text-sm text-gray-500">{scheduledPickups.length} total</span>
+      </div>
+
+      {scheduledPickups.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Calendar size={24} className="text-gray-400" />
+          </div>
+          <p className="text-gray-500 font-medium">No pickups scheduled</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {scheduledPickups.map((pickup) => (
+            <div key={pickup.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="font-bold text-gray-900">{pickup.date}</p>
+                  <p className="text-sm text-gray-600">{pickup.timeDisplay}</p>
+                  <p className="text-sm text-gray-500">{pickup.address}</p>
+                </div>
+                <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                  pickup.status === 'confirmed' 
+                    ? 'bg-emerald-100 text-emerald-800' 
+                    : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {pickup.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                </span>
+              </div>
+              
+              <div className="pt-3 border-t border-gray-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Items: {pickup.itemsDisplay}</p>
+                    <p className="text-sm text-gray-600">Size: {pickup.sizeDisplay}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-emerald-600">${pickup.estimatedPrice}</p>
+                    <p className="text-xs text-gray-500">estimated</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>#{pickup.confirmationNumber}</span>
+                  <span>{pickup.contact.name}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const AccountTab = () => {
+    const [section, setSection] = useState('payments');
+    const [newPayment, setNewPayment] = useState('');
+    const [newAddress, setNewAddress] = useState('');
+
+    const addPayment = async () => {
+      if (!newPayment) return;
+      await api.savePaymentMethod(newPayment);
+      setPaymentMethods(prev => [...prev, newPayment]);
+      setNewPayment('');
+    };
+
+    const addAddressHandler = async () => {
+      if (!newAddress) return;
+      await api.saveAddress(newAddress);
+      setSavedAddresses(prev => [...prev, newAddress]);
+      setNewAddress('');
+    };
+
+    const saveSettings = async () => {
+      await api.saveCustomizationSettings({ accountInfo, customSettings });
+      setAccountSaved(true);
+      setTimeout(() => setAccountSaved(false), 2000);
+    };
+
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900 text-center">Account</h1>
+        
+        <div className="grid grid-cols-3 gap-3">
+          <button
+            onClick={() => setSection('payments')}
+            className={`p-4 rounded-xl border text-center transition-colors ${
+              section === 'payments'
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}
+            type="button"
+          >
+            <CreditCard size={20} className="mx-auto mb-1" />
+            <span className="text-xs font-semibold">Payments</span>
+          </button>
+          <button
+            onClick={() => setSection('addresses')}
+            className={`p-4 rounded-xl border text-center transition-colors ${
+              section === 'addresses'
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}
+            type="button"
+          >
+            <MapPin size={20} className="mx-auto mb-1" />
+            <span className="text-xs font-semibold">Addresses</span>
+          </button>
+          <button
+            onClick={() => setSection('settings')}
+            className={`p-4 rounded-xl border text-center transition-colors ${
+              section === 'settings'
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-600'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}
+            type="button"
+          >
+            <Settings size={20} className="mx-auto mb-1" />
+            <span className="text-xs font-semibold">Settings</span>
+          </button>
+        </div>
+
+        {section === 'payments' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Payment Methods</h3>
+            {paymentMethods.length === 0 ? (
+              <div className="text-center py-8">
+                <CreditCard size={32} className="mx-auto text-gray-400 mb-3" />
+                <p className="text-gray-500">No payment methods saved.</p>
+                <p className="text-sm text-gray-400">Add one to speed up future bookings</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {paymentMethods.map((method, index) => (
+                  <div
+                    key={index}
+                    className="p-4 border border-gray-200 rounded-xl flex items-center space-x-3"
+                  >
+                    <CreditCard size={20} className="text-gray-400" />
+                    <span className="text-gray-700">{method}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex space-x-2">
+              <div className="relative flex-1">
+                <CreditCard size={20} className="absolute left-3 top-3 text-gray-400" />
+                <input
+                  type="text"
+                  value={newPayment}
+                  onChange={e => setNewPayment(e.target.value)}
+                  placeholder="Card ending in 1234"
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addPayment}
+                className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+
+        {section === 'addresses' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Saved Addresses</h3>
+            {savedAddresses.length === 0 ? (
+              <div className="text-center py-8">
+                <MapPin size={32} className="mx-auto text-gray-400 mb-3" />
+                <p className="text-gray-500">No addresses saved.</p>
+                <p className="text-sm text-gray-400">Save frequently used addresses</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {savedAddresses.map((addr, index) => (
+                  <div
+                    key={index}
+                    className="p-4 border border-gray-200 rounded-xl flex items-start space-x-3"
+                  >
+                    <MapPin size={20} className="text-gray-400 mt-0.5" />
+                    <span className="text-gray-700">{addr}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex space-x-2">
+              <div className="relative flex-1">
+                <MapPin size={20} className="absolute left-3 top-3 text-gray-400" />
+                <input
+                  type="text"
+                  value={newAddress}
+                  onChange={e => setNewAddress(e.target.value)}
+                  placeholder="123 Main St, City, State"
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addAddressHandler}
+                className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+
+        {section === 'settings' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Profile Settings</h3>
+            <div className="space-y-4">
+              <div className="relative">
+                <User size={20} className="absolute left-3 top-3 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  value={accountInfo.name}
+                  onChange={e => setAccountInfo({ ...accountInfo, name: e.target.value })}
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div className="relative">
+                <Phone size={20} className="absolute left-3 top-3 text-gray-400" />
+                <input
+                  type="tel"
+                  placeholder="Phone number"
+                  value={accountInfo.phone}
+                  onChange={e => setAccountInfo({ ...accountInfo, phone: e.target.value })}
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div className="relative">
+                <Mail size={20} className="absolute left-3 top-3 text-gray-400" />
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={accountInfo.email}
+                  onChange={e => setAccountInfo({ ...accountInfo, email: e.target.value })}
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <h4 className="font-semibold text-gray-900">Preferences</h4>
+                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl">
+                  <span className="text-gray-700">Email notifications</span>
+                  <input
+                    type="checkbox"
+                    checked={customSettings.notifications}
+                    onChange={e =>
+                      setCustomSettings({ ...customSettings, notifications: e.target.checked })
+                    }
+                    className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="p-4 border border-gray-200 rounded-xl">
+                  <label className="block text-gray-700 mb-2">Theme</label>
+                  <select
+                    value={customSettings.theme}
+                    onChange={e =>
+                      setCustomSettings({ ...customSettings, theme: e.target.value })
+                    }
+                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={saveSettings}
+                className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+              >
+                Save Changes
+              </button>
+              
+              {accountSaved && (
+                <div className="text-center">
+                  <div className="inline-flex items-center space-x-2 text-emerald-600">
+                    <CheckCircle2 size={16} />
+                    <span className="text-sm font-medium">Settings saved!</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-sm mx-auto bg-white min-h-screen">
+        {/* Main Content */}
+        <div className="px-5 py-6 pb-24">
+          {currentTab === 'home' && <HomeTab />}
+          {currentTab === 'pickups' && <PickupsTab />}
+          {currentTab === 'account' && <AccountTab />}
+        </div>
+
+        {/* Bottom Navigation */}
+        <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm bg-white border-t border-gray-200">
+          <div className="flex">
+            <button
+              type="button"
+              onClick={() => setCurrentTab('home')}
+              className={`flex-1 py-4 px-4 text-center transition-colors ${
+                currentTab === 'home'
+                  ? 'text-emerald-600'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <Plus size={22} className="mx-auto mb-1" />
+              <span className="text-xs font-bold">Book</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentTab('pickups')}
+              className={`flex-1 py-4 px-4 text-center transition-colors ${
+                currentTab === 'pickups'
+                  ? 'text-emerald-600'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <List size={22} className="mx-auto mb-1" />
+              <span className="text-xs font-bold">Pickups</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentTab('account')}
+              className={`flex-1 py-4 px-4 text-center transition-colors ${
+                currentTab === 'account'
+                  ? 'text-emerald-600'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <User size={22} className="mx-auto mb-1" />
+              <span className="text-xs font-bold">Account</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
-
-export default TrashPickupApp;                  
