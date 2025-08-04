@@ -658,7 +658,7 @@ const TrashPickupApp = () => {
     }
   };
 
-  const HomeTab = () => (
+  const renderHomeTab = () => (
     <div className="space-y-6">
       {currentStep === 1 ? (
         <div className="text-center space-y-3 mb-8">
@@ -685,7 +685,7 @@ const TrashPickupApp = () => {
     </div>
   );
 
-  const PickupsTab = () => (
+  const renderPickupsTab = () => (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 text-center">Scheduled Pickups</h1>
       {scheduledPickups.length === 0 ? (
@@ -923,8 +923,8 @@ const TrashPickupApp = () => {
       <div className="max-w-sm mx-auto">
         {/* Main Content */}
         <div className="px-5 py-6 pb-24">
-          {currentTab === 'home' && <HomeTab />}
-          {currentTab === 'pickups' && <PickupsTab />}
+          {currentTab === 'home' && renderHomeTab()}
+          {currentTab === 'pickups' && renderPickupsTab()}
           {currentTab === 'account' && <AccountTab />}
         </div>
 
